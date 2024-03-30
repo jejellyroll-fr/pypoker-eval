@@ -28,13 +28,13 @@ if(Python3_FOUND)
     # Chemin vers la bibliothèque poker-eval construite, adapté en fonction de l'OS
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         include_directories("${CMAKE_SOURCE_DIR}/include")
-        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/poker-eval-windows-amd64/poker_lib_static.lib")
+        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/poker_lib_static.lib")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         include_directories("${CMAKE_SOURCE_DIR}/include")
-        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/poker-eval-darwin-amd64/libpoker_lib_static.a")
+        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/libpoker_lib_static.a")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         include_directories("${CMAKE_SOURCE_DIR}/include")
-        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/poker-eval-linux-amd64/libpoker_lib_static.a")
+        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/libpoker_lib_static.a")
     endif()
 
     # Incluez les en-têtes de poker-eval si vous les avez
