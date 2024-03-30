@@ -35,6 +35,7 @@ jobs:
 
       - name: Build the project (Linux)
         run: |
+          ls
           mkdir build
           cd build
           cmake ..
