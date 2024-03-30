@@ -1,0 +1,70 @@
+name: Build and Package Python Project
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-on-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out repository code
+
+      - name: Install Python (Linux)
+        run: sudo apt-get update && sudo apt-get install -y python3 python3-pip python3-dev
+
+      - name: Install CMake and Make (Linux)
+        run: sudo apt-get install -y cmake make
+
+      - name: Build the project (Linux)
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+
+  build-on-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out repository code
+
+      - name: Install Python (macOS)
+        run: brew install python3
+
+      - name: Install CMake and Make (macOS)
+        run: brew install cmake make
+
+      - name: Build the project (macOS)
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make
+
+  build-on-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out repository code
+
+      - name: Install Python (Windows)
+        run: choco install python3 -y
+
+      - name: Install CMake
+        run: choco install cmake -y
+
+      - name: Build the project (Windows)
+        run: |
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 16 2019" # Assurez-vous que cette ligne correspond à votre version de Visual Studio
+          cmake --build .
