@@ -19,20 +19,18 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-
     - name: Set up Miniconda
       uses: conda-incubator/setup-miniconda@v2
       with:
         auto-update-conda: true
         python-version: "3.11"
         activate-environment: fpdb311
-
     - name: Install Python development headers
       shell: bash -l {0}
       run: |
-          conda install -y python=3.11
-          sudo apt-get update
-          sudo apt-get install -y python3-dev
+        conda install -y python=3.11
+        sudo apt-get update
+        sudo apt-get install -y python3-dev
     - name: Build poker-eval (Linux)
       shell: bash -l {0}
       run: |
@@ -42,23 +40,164 @@ jobs:
         cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         make
         cd ../..
-
-
     - name: Build pypoker-eval (Linux)
       shell: bash -l {0}
       run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-dev
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-          cmake --build . --verbose
-          cd ..
-          find . -name "*pokereval*.so"
-          cp build/*pokereval*.so _pokereval_3_11.so || true
-
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
+        cmake --build . --verbose
+        cd ..
+        find . -name "*pokereval*.so"
+        cp build/*pokereval*.so _pokereval_3_11.so || true
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: pokereval-linux
+        path: _pokereval_3_11.so
+
+  build-on-linux-arm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build for ARM
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        docker run --rm -v $(pwd):/work -w /work arm64v8/ubuntu:latest /bin/bash -c "
+        apt-get update && \
+        apt-get install -y software-properties-common && \
+        add-apt-repository ppa:deadsnakes/ppa -y && \
+        apt-get update && \
+        apt-get install -y python3.11 python3.11-dev cmake make && \
+        cd poker-eval && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+        make && \
+        cd ../.. && \
+        mkdir -p build && \
+        cd build && \
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. && \
+        cmake --build . --verbose && \
+        cd .. && \
+        find . -name '*pokereval*.so' -exec cp {} _pokereval_3_11.so \; || true
+        "
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pokereval-linux-arm
+        path: _pokereval_3_11.so
+
+  build-on-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install cmake
+    - name: Build poker-eval (Windows)
+      run: |
+        cd poker-eval
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022" -A x64
+        cmake --build . --config Release
+        cd ../..
+    - name: Build pypoker-eval (Windows)
+      run: |
+        mkdir build
+        cd build
+        cmake .. -G "Visual Studio 17 2022" -A x64
+        cmake --build . --config Release --verbose
+        cd ..
+        Get-ChildItem -Recurse -Filter "*pokereval*.pyd" | Copy-Item -Destination _pokereval_3_11.pyd
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pokereval-windows
+        path: _pokereval_3_11.pyd
+
+  build-on-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install cmake
+    - name: Build poker-eval (macOS)
+      run: |
+        cd poker-eval
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        make
+        cd ../..
+    - name: Build pypoker-eval (macOS)
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
+        cmake --build . --verbose
+        cd ..
+        find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pokereval-macos
+        path: _pokereval_3_11.so
+
+  build-on-macos-arm:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install cmake
+    - name: Build poker-eval (macOS ARM)
+      run: |
+        cd poker-eval
+        mkdir build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_OSX_ARCHITECTURES=arm64
+        make
+        cd ../..
+    - name: Build pypoker-eval (macOS ARM)
+      run: |
+        mkdir build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_OSX_ARCHITECTURES=arm64 ..
+        cmake --build . --verbose
+        cd ..
+        find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pokereval-macos-arm
         path: _pokereval_3_11.so
