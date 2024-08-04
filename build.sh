@@ -31,9 +31,17 @@ fi
 
 echo "Adjusted BASE_PATH2 for OS: $BASE_PATH2"
 
+# Initialize submodules
+echo "Initializing submodules..."
+git submodule update --init --recursive
+
 # Build poker-eval
 echo "Building poker-eval..."
 cd "${BASE_PATH}/poker-eval"
+if [ ! -f "CMakeLists.txt" ]; then
+    echo "Error: CMakeLists.txt not found in $(pwd)"
+    exit 1
+fi
 mkdir -p build
 cd build
 if [[ "$OS" == "Windows" ]]; then
@@ -48,6 +56,10 @@ cd "${BASE_PATH}"
 # Build pypoker-eval
 echo "Building pypoker-eval..."
 cd "${BASE_PATH}"
+if [ ! -f "CMakeLists.txt" ]; then
+    echo "Error: CMakeLists.txt not found in $(pwd)"
+    exit 1
+fi
 mkdir -p build
 cd build
 if [[ "$OS" == "Windows" ]]; then
