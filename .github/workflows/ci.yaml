@@ -19,14 +19,21 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-    - name: Set up Python 3.11 (Linux)
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+    - name: Set up Anaconda
+      run: |
+        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Linux-x86_64.sh -O anaconda.sh
+        bash anaconda.sh -b -p $HOME/anaconda
+        echo "$HOME/anaconda/bin" >> $GITHUB_PATH
+    - name: Create and activate conda environment
+      run: |
+        source $HOME/anaconda/bin/activate
+        conda create -n fpdb311 python=3.11 -y
+        echo "conda activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (Linux)
       run: sudo apt-get install -y cmake make
     - name: Build poker-eval (Linux)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
@@ -35,9 +42,10 @@ jobs:
         cd ../..
     - name: Build pypoker-eval (Linux)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         mkdir -p build
         cd build
-        cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
+        cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
         make
         cd ..
         cp build/pypokereval.so _pokereval_3_11.so
@@ -61,8 +69,12 @@ jobs:
         apt-get install -y software-properties-common && \
         add-apt-repository ppa:deadsnakes/ppa -y && \
         apt-get update && \
-        apt-get install -y python3.11 python3.11-dev python3.11-distutils python3.11-venv cmake make && \
-        python3.11 -m pip install --upgrade pip && \
+        apt-get install -y wget bzip2 && \
+        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Linux-aarch64.sh -O anaconda.sh && \
+        bash anaconda.sh -b -p /opt/conda && \
+        /opt/conda/bin/conda create -n fpdb311 python=3.11 -y && \
+        source /opt/conda/bin/activate fpdb311 && \
+        apt-get install -y cmake make && \
         cd poker-eval && \
         mkdir -p build && \
         cd build && \
@@ -71,7 +83,7 @@ jobs:
         cd ../.. && \
         mkdir -p build && \
         cd build && \
-        cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c \"from sysconfig import get_paths as gp; print(gp()['include'])\") -DPython3_LIBRARY=$(python3.11 -c \"from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')\") .. && \
+        cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c \"from sysconfig import get_paths as gp; print(gp()['include'])\") -DPython3_LIBRARY=$(python -c \"from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')\") .. && \
         make && \
         cd .. && \
         cp build/pypokereval.so _pokereval_3_11.so
@@ -84,14 +96,21 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-    - name: Set up Python 3.11 (macOS)
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+    - name: Set up Anaconda
+      run: |
+        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-MacOSX-x86_64.sh -O anaconda.sh
+        bash anaconda.sh -b -p $HOME/anaconda
+        echo "$HOME/anaconda/bin" >> $GITHUB_PATH
+    - name: Create and activate conda environment
+      run: |
+        source $HOME/anaconda/bin/activate
+        conda create -n fpdb311 python=3.11 -y
+        echo "conda activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (macOS)
       run: brew install cmake make
     - name: Build poker-eval (macOS)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
@@ -100,9 +119,10 @@ jobs:
         cd ../..
     - name: Build pypoker-eval (macOS)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         mkdir -p build
         cd build
-        cmake -DPython3_EXECUTABLE=/usr/local/opt/python@3.11/bin/python3 -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.dylib')") ..
+        cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.dylib')") ..
         make
         cd ..
         cp build/pypokereval.so _pokereval_3_11.so
@@ -114,14 +134,21 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-    - name: Set up Python 3.11 (macOS ARM)
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+    - name: Set up Anaconda
+      run: |
+        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-MacOSX-arm64.sh -O anaconda.sh
+        bash anaconda.sh -b -p $HOME/anaconda
+        echo "$HOME/anaconda/bin" >> $GITHUB_PATH
+    - name: Create and activate conda environment
+      run: |
+        source $HOME/anaconda/bin/activate
+        conda create -n fpdb311 python=3.11 -y
+        echo "conda activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (macOS ARM)
       run: arch -arm64 brew install cmake make
     - name: Build poker-eval (macOS ARM)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
@@ -130,9 +157,10 @@ jobs:
         cd ../..
     - name: Build pypoker-eval (macOS ARM)
       run: |
+        source $HOME/anaconda/bin/activate fpdb311
         mkdir -p build
         cd build
-        arch -arm64 cmake -DPython3_EXECUTABLE=/opt/homebrew/opt/python@3.11/bin/python3 -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.dylib')") ..
+        arch -arm64 cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.dylib')") ..
         arch -arm64 make
         cd ..
         cp build/pypokereval.so _pokereval_3_11.so
@@ -144,14 +172,21 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-    - name: Set up Python 3.11 (Windows)
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+    - name: Set up Anaconda
+      run: |
+        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Windows-x86_64.exe -O anaconda.exe
+        Start-Process -FilePath anaconda.exe -ArgumentList '/S /D=%CD%\anaconda' -NoNewWindow -Wait
+        echo "%CD%\anaconda\Scripts" >> $env:GITHUB_PATH
+    - name: Create and activate conda environment
+      run: |
+        %CD%\anaconda\Scripts\activate
+        conda create -n fpdb311 python=3.11 -y
+        echo "conda activate fpdb311" >> $env:GITHUB_ENV
     - name: Install CMake
       run: choco install cmake -y
     - name: Build poker-eval (Windows)
       run: |
+        %CD%\anaconda\Scripts\activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
@@ -160,6 +195,7 @@ jobs:
         cd ../..
     - name: Build pypoker-eval (Windows)
       run: |
+        %CD%\anaconda\Scripts\activate fpdb311
         mkdir -p build
         cd build
         cmake .. -G "Visual Studio 17 2022"
