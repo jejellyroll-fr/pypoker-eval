@@ -47,16 +47,22 @@ jobs:
     - name: Build pypoker-eval (Linux)
       shell: bash -l {0}
       run: |
-        mkdir -p build
-        cd build
-        cmake -DPython3_EXECUTABLE=$(which python) \
-              -DPython3_INCLUDE_DIR=$(python -c "import sysconfig; print(sysconfig.get_path('include'))") \
-              -DPython3_LIBRARY=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR') + '/libpython' + sysconfig.get_config_var('LDVERSION') + '.so')") \
-              ..
-        make VERBOSE=1
-        cd ..
-        ls -R build
-        cp build/*pokereval*.so _pokereval_3_11.so || true
+          conda info
+          which python
+          python --version
+          python -c "import sys; print(sys.executable)"
+          python -c "import sysconfig; print(sysconfig.get_paths())"
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+                -DPython3_EXECUTABLE=$(which python) \
+                -DPython3_INCLUDE_DIR=$(python -c "import sysconfig; print(sysconfig.get_path('include'))") \
+                -DPython3_LIBRARY=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR') + '/libpython' + sysconfig.get_config_var('LDVERSION') + '.so')") \
+                ..
+          cmake --build . --verbose
+          cd ..
+          find . -name "*pokereval*.so"
+          cp build/*pokereval*.so _pokereval_3_11.so || true
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
