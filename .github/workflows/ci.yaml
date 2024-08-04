@@ -17,6 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Check out repository code
+        with:
+          submodules: true
 
       - name: Install Python 3.11 (Linux)
         run: |
@@ -28,15 +30,18 @@ jobs:
       - name: Install CMake and Make (Linux)
         run: sudo apt-get install -y cmake make
 
-      - name: Download and Extract poker-eval (Linux)
+      - name: Build poker-eval (Linux)
         run: |
-          wget https://github.com/jejellyroll-fr/poker-eval/releases/download/poker-eval-v140.0.0/poker-eval-linux-amd64.zip
-          unzip poker-eval-linux-amd64.zip -d poker-eval
+          cd poker-eval
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+          cd ../..
 
-      - name: Build the project (Linux)
+      - name: Build pypoker-eval (Linux)
         run: |
-          ls
-          mkdir build
+          mkdir -p build
           cd build
           cmake ..
           make
@@ -46,6 +51,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         name: Check out repository code
+        with:
+          submodules: true
 
       - name: Install Python 3.11 (macOS)
         run: |
@@ -56,23 +63,62 @@ jobs:
       - name: Install CMake and Make (macOS)
         run: brew install cmake make
 
-      - name: Download and Extract poker-eval (macOS)
+      - name: Build poker-eval (macOS)
         run: |
-          curl -L https://github.com/jejellyroll-fr/poker-eval/releases/download/poker-eval-v140.0.0/poker-eval-darwin-amd64.zip -o poker-eval-darwin-amd64.zip
-          unzip poker-eval-darwin-amd64.zip -d poker-eval
-
-      - name: Build the project (macOS)
-        run: |
-          mkdir build
+          cd poker-eval
+          mkdir -p build
           cd build
           cmake ..
           make
+          cd ../..
+
+      - name: Build pypoker-eval (macOS)
+        run: |
+          mkdir -p build
+          cd build
+          cmake ..
+          make
+
+  build-on-macos-arm:
+    runs-on: macos-12
+    steps:
+      - uses: actions/checkout@v3
+        name: Check out repository code
+        with:
+          submodules: true
+
+      - name: Install Python 3.11 (macOS ARM)
+        run: |
+          arch -arm64 brew install python@3.11
+          echo 'export PATH="/opt/homebrew/opt/python@3.11/bin:$PATH"' >> $GITHUB_ENV
+          arch -arm64 python3.11 -m pip install --upgrade pip
+
+      - name: Install CMake and Make (macOS ARM)
+        run: arch -arm64 brew install cmake make
+
+      - name: Build poker-eval (macOS ARM)
+        run: |
+          cd poker-eval
+          mkdir -p build
+          cd build
+          arch -arm64 cmake ..
+          arch -arm64 make
+          cd ../..
+
+      - name: Build pypoker-eval (macOS ARM)
+        run: |
+          mkdir -p build
+          cd build
+          arch -arm64 cmake ..
+          arch -arm64 make
 
   build-on-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
         name: Check out repository code
+        with:
+          submodules: true
 
       - name: Install Python 3.11 (Windows)
         run: |
@@ -83,14 +129,18 @@ jobs:
       - name: Install CMake
         run: choco install cmake -y
 
-      - name: Download and Extract poker-eval (Windows)
+      - name: Build poker-eval (Windows)
         run: |
-          Invoke-WebRequest -Uri "https://github.com/jejellyroll-fr/poker-eval/releases/download/poker-eval-v140.0.0/poker-eval-windows-amd64.zip" -OutFile "poker-eval-windows-amd64.zip"
-          Expand-Archive -Path "poker-eval-windows-amd64.zip" -DestinationPath "poker-eval"
-
-      - name: Build the project (Windows)
-        run: |
-          mkdir build
+          cd poker-eval
+          mkdir -p build
           cd build
-          cmake .. -G "Visual Studio 16 2019" # Adjust as per your Visual Studio version
+          cmake .. -G "Visual Studio 16 2019"
+          cmake --build .
+          cd ../..
+
+      - name: Build pypoker-eval (Windows)
+        run: |
+          mkdir -p build
+          cd build
+          cmake .. -G "Visual Studio 16 2019"
           cmake --build .
