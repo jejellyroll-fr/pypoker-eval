@@ -44,6 +44,10 @@ jobs:
         make
         cd ../..
 
+    - name: Install Python development headers
+      run: |
+          conda install -y python=3.11 python-dev
+
     - name: Build pypoker-eval (Linux)
       shell: bash -l {0}
       run: |
