@@ -28,8 +28,7 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        source $HOME/anaconda/bin/activate fpdb311
-        conda activate fpdb311
+        echo "source $HOME/anaconda/bin/activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (Linux)
       run: sudo apt-get install -y cmake make
     - name: Build poker-eval (Linux)
@@ -106,8 +105,7 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        source $HOME/anaconda/bin/activate fpdb311
-        conda activate fpdb311
+        echo "source $HOME/anaconda/bin/activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (macOS)
       run: brew install cmake make
     - name: Build poker-eval (macOS)
@@ -145,8 +143,7 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        source $HOME/anaconda/bin/activate fpdb311
-        conda activate fpdb311
+        echo "source $HOME/anaconda/bin/activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (macOS ARM)
       run: arch -arm64 brew install cmake make
     - name: Build poker-eval (macOS ARM)
@@ -184,7 +181,7 @@ jobs:
       run: |
         %CD%\anaconda\Scripts\activate
         conda create -n fpdb311 python=3.11 -y
-        conda activate fpdb311
+        echo "conda activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake
       run: choco install cmake -y
     - name: Build poker-eval (Windows)
@@ -205,3 +202,4 @@ jobs:
         cmake --build .
         cd ..
         move build\Debug\pypokereval.dll _pokereval_3_11.pyd
+
