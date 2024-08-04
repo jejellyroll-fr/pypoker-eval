@@ -28,12 +28,13 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        echo "source $HOME/anaconda/bin/activate fpdb311" >> $GITHUB_ENV
+        echo "$HOME/anaconda/bin/activate fpdb311" >> $GITHUB_ENV
     - name: Install CMake and Make (Linux)
       run: sudo apt-get install -y cmake make
     - name: Build poker-eval (Linux)
       run: |
-        source $HOME/anaconda/bin/activate fpdb311
+        source $GITHUB_ENV && eval "$($HOME/anaconda/bin/conda shell.bash hook)"
+        conda activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
@@ -42,7 +43,8 @@ jobs:
         cd ../..
     - name: Build pypoker-eval (Linux)
       run: |
-        source $HOME/anaconda/bin/activate fpdb311
+        source $GITHUB_ENV && eval "$($HOME/anaconda/bin/conda shell.bash hook)"
+        conda activate fpdb311
         mkdir -p build
         cd build
         cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
