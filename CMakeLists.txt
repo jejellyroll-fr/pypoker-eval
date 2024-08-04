@@ -30,15 +30,16 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # Chemins pour Linux
     if(EXISTS "$ENV{HOME}/anaconda3/bin/python")
         set(Python3_EXECUTABLE "$ENV{HOME}/anaconda3/bin/python")
-        set(Python3_LIBRARY "$ENV{HOME}/anaconda3/lib/libpython3.11.so") # Remplacer 3.11 par votre version de Python
-        set(Python3_INCLUDE_DIR "$ENV{HOME}/anaconda3/include/python3.11") # Remplacer 3.11 par votre version de Python
+        set(Python3_LIBRARY "$ENV{HOME}/anaconda3/lib/libpython3.10.so") # Remplacer 3.11 par votre version de Python
+        set(Python3_INCLUDE_DIR "$ENV{HOME}/anaconda3/include/python3.10") # Remplacer 3.11 par votre version de Python
     else()
-        # Sur Linux, le PPA deadsnakes permet l'installation de Python 3.11
-        set(Python3_EXECUTABLE "/usr/bin/python3.11")
-        set(Python3_LIBRARY "/usr/lib/x86_64-linux-gnu/libpython3.11.so")
-        set(Python3_INCLUDE_DIR "/usr/include/python3.11")
+        # Sur Linux, le PPA deadsnakes permet l'installation de Python 3.10
+        set(Python3_EXECUTABLE "/usr/bin/python3.10")
+        set(Python3_LIBRARY "/usr/lib/x86_64-linux-gnu/libpython3.10.so")
+        set(Python3_INCLUDE_DIR "/usr/include/python3.10")
     endif()
 endif()
+
 # Essayez de trouver une installation de Python 3.x
 find_package(Python3 COMPONENTS Interpreter Development)
 if(Python3_FOUND)
