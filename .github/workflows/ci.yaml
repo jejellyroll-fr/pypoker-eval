@@ -15,132 +15,159 @@ jobs:
   build-on-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-        name: Check out repository code
-        with:
-          submodules: true
+    - uses: actions/checkout@v3
+      name: Check out repository code
+      with:
+        submodules: true
+    - name: Install Python 3.11 (Linux)
+      run: |
+        sudo apt-get update
+        sudo add-apt-repository ppa:deadsnakes/ppa -y
+        sudo apt-get install -y python3.11 python3.11-dev python3.11-distutils python3.11-venv
+        python3.11 -m pip install --upgrade pip
+    - name: Install CMake and Make (Linux)
+      run: sudo apt-get install -y cmake make
+    - name: Build poker-eval (Linux)
+      run: |
+        cd poker-eval
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        make
+        cd ../..
+    - name: Build pypoker-eval (Linux)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
+        make
+        cd ..
+        cp build/pypokereval.so _pokereval_3_11.so
 
-      - name: Install Python 3.11 (Linux)
-        run: |
-          sudo apt-get update
-          sudo add-apt-repository ppa:deadsnakes/ppa -y
-          sudo apt-get install -y python3.11 python3.11-dev python3.11-distutils python3.11-venv
-          python3.11 -m pip install --upgrade pip
-
-      - name: Install CMake and Make (Linux)
-        run: sudo apt-get install -y cmake make
-
-      - name: Build poker-eval (Linux)
-        run: |
-          cd poker-eval
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-          cd ../..
-
-      - name: Build pypoker-eval (Linux)
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make
+  build-on-linux-arm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      name: Check out repository code
+      with:
+        submodules: true
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    - name: Build for ARM
+      run: |
+        docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        docker run --rm -v $(pwd):/work -w /work arm64v8/ubuntu:latest /bin/bash -c "
+        apt-get update && \
+        apt-get install -y software-properties-common && \
+        add-apt-repository ppa:deadsnakes/ppa -y && \
+        apt-get update && \
+        apt-get install -y python3.11 python3.11-dev python3.11-distutils python3.11-venv cmake make && \
+        python3.11 -m pip install --upgrade pip && \
+        cd poker-eval && \
+        mkdir -p build && \
+        cd build && \
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+        make && \
+        cd ../.. && \
+        mkdir -p build && \
+        cd build && \
+        cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c \"from sysconfig import get_paths as gp; print(gp()['include'])\") -DPython3_LIBRARY=$(python3.11 -c \"from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')\") .. && \
+        make && \
+        cd .. && \
+        cp build/pypokereval.so _pokereval_3_11.so
+        "
 
   build-on-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
-        name: Check out repository code
-        with:
-          submodules: true
-
-      - name: Install Python 3.11 (macOS)
-        run: |
-          brew install python@3.11
-          echo 'export PATH="/usr/local/opt/python@3.11/bin:$PATH"' >> $GITHUB_ENV
-          python3.11 -m pip install --upgrade pip
-
-      - name: Install CMake and Make (macOS)
-        run: brew install cmake make
-
-      - name: Build poker-eval (macOS)
-        run: |
-          cd poker-eval
-          mkdir -p build
-          cd build
-          cmake ..
-          make
-          cd ../..
-
-      - name: Build pypoker-eval (macOS)
-        run: |
-          mkdir -p build
-          cd build
-          cmake ..
-          make
+    - uses: actions/checkout@v3
+      name: Check out repository code
+      with:
+        submodules: true
+    - name: Install Python 3.11 (macOS)
+      run: |
+        brew install python@3.11
+        echo "/usr/local/opt/python@3.11/bin" >> $GITHUB_PATH
+        python3.11 -m pip install --upgrade pip
+    - name: Install CMake and Make (macOS)
+      run: brew install cmake make
+    - name: Build poker-eval (macOS)
+      run: |
+        cd poker-eval
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        make
+        cd ../..
+    - name: Build pypoker-eval (macOS)
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DPython3_EXECUTABLE=/usr/local/opt/python@3.11/libexec/bin/python3 -DPython3_INCLUDE_DIR=/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/include/python3.11 -DPython3_LIBRARY=/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/libpython3.11.dylib ..
+        make
+        cd ..
+        cp build/pypokereval.so _pokereval_3_11.so
 
   build-on-macos-arm:
     runs-on: macos-12
     steps:
-      - uses: actions/checkout@v3
-        name: Check out repository code
-        with:
-          submodules: true
-
-      - name: Install Python 3.11 (macOS ARM)
-        run: |
-          arch -arm64 brew install python@3.11
-          echo 'export PATH="/opt/homebrew/opt/python@3.11/bin:$PATH"' >> $GITHUB_ENV
-          arch -arm64 python3.11 -m pip install --upgrade pip
-
-      - name: Install CMake and Make (macOS ARM)
-        run: arch -arm64 brew install cmake make
-
-      - name: Build poker-eval (macOS ARM)
-        run: |
-          cd poker-eval
-          mkdir -p build
-          cd build
-          arch -arm64 cmake ..
-          arch -arm64 make
-          cd ../..
-
-      - name: Build pypoker-eval (macOS ARM)
-        run: |
-          mkdir -p build
-          cd build
-          arch -arm64 cmake ..
-          arch -arm64 make
+    - uses: actions/checkout@v3
+      name: Check out repository code
+      with:
+        submodules: true
+    - name: Install Python 3.11 (macOS ARM)
+      run: |
+        arch -arm64 brew install python@3.11
+        echo "/opt/homebrew/opt/python@3.11/bin" >> $GITHUB_PATH
+        arch -arm64 python3.11 -m pip install --upgrade pip
+    - name: Install CMake and Make (macOS ARM)
+      run: arch -arm64 brew install cmake make
+    - name: Build poker-eval (macOS ARM)
+      run: |
+        cd poker-eval
+        mkdir -p build
+        cd build
+        arch -arm64 cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        arch -arm64 make
+        cd ../..
+    - name: Build pypoker-eval (macOS ARM)
+      run: |
+        mkdir -p build
+        cd build
+        arch -arm64 cmake -DPython3_EXECUTABLE=/opt/homebrew/opt/python@3.11/bin/python3 -DPython3_INCLUDE_DIR=/opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/include/python3.11 -DPython3_LIBRARY=/opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/libpython3.11.dylib ..
+        arch -arm64 make
+        cd ..
+        cp build/pypokereval.so _pokereval_3_11.so
 
   build-on-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
-        name: Check out repository code
-        with:
-          submodules: true
-
-      - name: Install Python 3.11 (Windows)
-        run: |
-          choco install python --version=3.11.0 -y
-          echo "C:\Python311\Scripts;C:\Python311" | Set-Content -Path $env:GITHUB_PATH -Encoding utf8 -Append
-          python -m pip install --upgrade pip
-
-      - name: Install CMake
-        run: choco install cmake -y
-
-      - name: Build poker-eval (Windows)
-        run: |
-          cd poker-eval
-          mkdir -p build
-          cd build
-          cmake .. -G "Visual Studio 16 2019"
-          cmake --build .
-          cd ../..
-
-      - name: Build pypoker-eval (Windows)
-        run: |
-          mkdir -p build
-          cd build
-          cmake .. -G "Visual Studio 16 2019"
-          cmake --build .
+    - uses: actions/checkout@v3
+      name: Check out repository code
+      with:
+        submodules: true
+    - name: Install Python 3.11 (Windows)
+      run: |
+        choco install python --version=3.11.0 -y
+        echo "C:\Python311\Scripts;C:\Python311" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        python -m pip install --upgrade pip
+    - name: Install CMake
+      run: choco install cmake -y
+    - name: Build poker-eval (Windows)
+      run: |
+        cd poker-eval
+        mkdir -p build
+        cd build
+        cmake .. -G "Visual Studio 17 2022"
+        cmake --build .
+        cd ../..
+    - name: Build pypoker-eval (Windows)
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -G "Visual Studio 17 2022"
+        cmake --build .
+        cd ..
+        move build\Debug\pypokereval.dll _pokereval_3_11.pyd
