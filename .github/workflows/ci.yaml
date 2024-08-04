@@ -27,13 +27,12 @@ jobs:
         python-version: "3.11"
         activate-environment: fpdb311
 
-    - name: Install dependencies
+    - name: Install Python development headers
       shell: bash -l {0}
       run: |
-        conda install -y cmake make
-        sudo apt-get update
-        sudo apt-get install -y libbz2-dev
-
+          conda install -y python=3.11
+          sudo apt-get update
+          sudo apt-get install -y python3-dev
     - name: Build poker-eval (Linux)
       shell: bash -l {0}
       run: |
@@ -44,9 +43,6 @@ jobs:
         make
         cd ../..
 
-    - name: Install Python development headers
-      run: |
-          conda install -y python=3.11 python-dev
 
     - name: Build pypoker-eval (Linux)
       shell: bash -l {0}
