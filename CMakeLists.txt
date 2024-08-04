@@ -16,38 +16,67 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     set(Python3_EXECUTABLE "/usr/local/opt/python@3.11/libexec/bin/python3")
     set(Python3_LIBRARY "/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/libpython3.11.dylib")
     set(Python3_INCLUDE_DIR "/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/include/python3.11")
-elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    # Chemins pour l'environnement conda fpdb311
-    set(CONDA_PREFIX $ENV{HOME}/anaconda3/envs/fpdb311)
-    set(Python3_EXECUTABLE "${CONDA_PREFIX}/bin/python3.11")
-    set(Python3_LIBRARY "${CONDA_PREFIX}/lib/libpython3.11.so")
-    set(Python3_INCLUDE_DIR "${CONDA_PREFIX}/include/python3.11")
 endif()
 
-# Essayer de trouver une installation de Python 3.x
-find_package(Python3 COMPONENTS Interpreter Development)
+# Trouver Python 3.x
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
 if(Python3_FOUND)
-    message(STATUS "Python 3.x trouvé : Version ${Python3_VERSION}, Librairies : ${Python3_LIBRARIES}, Include : ${Python3_INCLUDE_DIRS}")
+    message(STATUS "Python 3.x trouvé : Version ${Python3_VERSION}")
+    message(STATUS "Python Interpreter : ${Python3_EXECUTABLE}")
+    message(STATUS "Python Libraries : ${Python3_LIBRARIES}")
+    message(STATUS "Python Include Dirs : ${Python3_INCLUDE_DIRS}")
+
     include_directories(${Python3_INCLUDE_DIRS})
+    
+    # Configurer les chemins pour poker-eval
+    set(POKER_EVAL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/poker-eval/include")
+    include_directories(${POKER_EVAL_INCLUDE_DIR})
 
     if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-        include_directories("${CMAKE_SOURCE_DIR}/poker-eval/include")
         set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/Debug/poker_lib_static.lib")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        message(STATUS "CMAKE_SOURCE_DIR is set to ${CMAKE_SOURCE_DIR}")
-        include_directories("${CMAKE_SOURCE_DIR}/poker-eval/include")
         set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
-        message(STATUS "POKER_EVAL_LIB_PATH is set to ${POKER_EVAL_LIB_PATH}")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-        include_directories("${CMAKE_SOURCE_DIR}/poker-eval/include")
         set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
     endif()
 
-    include_directories("${CMAKE_SOURCE_DIR}/poker-eval/include")
+    # Vérifier l'existence de la bibliothèque poker-eval
+    if(NOT EXISTS ${POKER_EVAL_LIB_PATH})
+        message(FATAL_ERROR "La bibliothèque poker-eval n'a pas été trouvée à ${POKER_EVAL_LIB_PATH}. Assurez-vous de la construire d'abord.")
+    endif()
 
+    # Ajouter la cible pour pypokereval
     add_library(pypokereval MODULE pypokereval.c)
     target_link_libraries(pypokereval ${Python3_LIBRARIES} ${POKER_EVAL_LIB_PATH})
-    set_target_properties(pypokereval PROPERTIES PREFIX "")
+    
+    # Configurer les propriétés de la cible
+    set_target_properties(pypokereval PROPERTIES 
+        PREFIX ""
+        SUFFIX ".so"
+    )
+
+    # Définir le nom de sortie en fonction du système d'exploitation
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
+        set_target_properties(pypokereval PROPERTIES SUFFIX ".pyd")
+    elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set_target_properties(pypokereval PROPERTIES SUFFIX ".so")
+    endif()
+
+    # Afficher des informations de débogage
+    message(STATUS "POKER_EVAL_INCLUDE_DIR: ${POKER_EVAL_INCLUDE_DIR}")
+    message(STATUS "POKER_EVAL_LIB_PATH: ${POKER_EVAL_LIB_PATH}")
+
+    # Configurer les flags de compilation
+    if(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+        target_compile_options(pypokereval PRIVATE -fPIC)
+    endif()
+
+    # Définir les options de débogage si nécessaire
+    if(CMAKE_BUILD_TYPE MATCHES Debug)
+        target_compile_definitions(pypokereval PRIVATE DEBUG=1)
+    endif()
+
 else()
-    message(WARNING "Python 3.x n'a pas été trouvé, le binding Python ne sera pas construit.")
+    message(FATAL_ERROR "Python 3.x n'a pas été trouvé. Le binding Python ne peut pas être construit.")
 endif()
