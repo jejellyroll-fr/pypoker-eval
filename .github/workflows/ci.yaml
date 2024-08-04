@@ -57,37 +57,38 @@ jobs:
         path: _pokereval_3_11.so
 
   build-on-linux-arm:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, ARM64]
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    - name: Build for ARM
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
       run: |
-        docker run --rm --privileged multiarch/qemu-user-static:register --reset
-        docker run --rm -v $(pwd):/work -w /work arm64v8/ubuntu:latest /bin/bash -c "
-        apt-get update && \
-        apt-get install -y software-properties-common && \
-        add-apt-repository ppa:deadsnakes/ppa -y && \
-        apt-get update && \
-        apt-get install -y python3.11 python3.11-dev cmake make && \
-        cd poker-eval && \
-        mkdir -p build && \
-        cd build && \
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
-        make && \
-        cd ../.. && \
-        mkdir -p build && \
-        cd build && \
-        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON .. && \
-        cmake --build . --verbose && \
-        cd .. && \
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository ppa:deadsnakes/ppa -y
+        sudo apt-get update
+        sudo apt-get install -y python3.11 python3.11-dev cmake make
+    - name: Build poker-eval
+      run: |
+        cd poker-eval
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        make
+        cd ../..
+    - name: Build pypoker-eval
+      run: |
+        mkdir -p build
+        cd build
+        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
+        cmake --build . --verbose
+        cd ..
         find . -name '*pokereval*.so' -exec cp {} _pokereval_3_11.so \; || true
-        "
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
