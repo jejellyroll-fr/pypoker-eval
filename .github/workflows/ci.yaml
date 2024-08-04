@@ -28,7 +28,8 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        echo "conda activate fpdb311" >> $GITHUB_ENV
+        source $HOME/anaconda/bin/activate fpdb311
+        conda activate fpdb311
     - name: Install CMake and Make (Linux)
       run: sudo apt-get install -y cmake make
     - name: Build poker-eval (Linux)
@@ -72,8 +73,8 @@ jobs:
         apt-get install -y wget bzip2 && \
         wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Linux-aarch64.sh -O anaconda.sh && \
         bash anaconda.sh -b -p /opt/conda && \
-        /opt/conda/bin/conda create -n fpdb311 python=3.11 -y && \
-        source /opt/conda/bin/activate fpdb311 && \
+        /opt/conda/bin/conda create -n build-env python=3.11 -y && \
+        source /opt/conda/bin/activate build-env && \
         apt-get install -y cmake make && \
         cd poker-eval && \
         mkdir -p build && \
@@ -105,7 +106,8 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        echo "conda activate fpdb311" >> $GITHUB_ENV
+        source $HOME/anaconda/bin/activate fpdb311
+        conda activate fpdb311
     - name: Install CMake and Make (macOS)
       run: brew install cmake make
     - name: Build poker-eval (macOS)
@@ -143,7 +145,8 @@ jobs:
       run: |
         source $HOME/anaconda/bin/activate
         conda create -n fpdb311 python=3.11 -y
-        echo "conda activate fpdb311" >> $GITHUB_ENV
+        source $HOME/anaconda/bin/activate fpdb311
+        conda activate fpdb311
     - name: Install CMake and Make (macOS ARM)
       run: arch -arm64 brew install cmake make
     - name: Build poker-eval (macOS ARM)
@@ -174,14 +177,14 @@ jobs:
         submodules: true
     - name: Set up Anaconda
       run: |
-        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Windows-x86_64.exe -O anaconda.exe
+        Invoke-WebRequest -Uri https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Windows-x86_64.exe -OutFile anaconda.exe
         Start-Process -FilePath anaconda.exe -ArgumentList '/S /D=%CD%\anaconda' -NoNewWindow -Wait
         echo "%CD%\anaconda\Scripts" >> $env:GITHUB_PATH
     - name: Create and activate conda environment
       run: |
         %CD%\anaconda\Scripts\activate
         conda create -n fpdb311 python=3.11 -y
-        echo "conda activate fpdb311" >> $env:GITHUB_ENV
+        conda activate fpdb311
     - name: Install CMake
       run: choco install cmake -y
     - name: Build poker-eval (Windows)
