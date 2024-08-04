@@ -33,6 +33,10 @@ echo "Adjusted BASE_PATH2 for OS: $BASE_PATH2"
 
 # Initialize submodules
 echo "Initializing submodules..."
+if [ -d "${BASE_PATH}/poker-eval" ]; then
+    echo "Removing existing poker-eval directory"
+    rm -rf "${BASE_PATH}/poker-eval"
+fi
 git submodule update --init --recursive
 
 # Build poker-eval
@@ -48,7 +52,7 @@ if [[ "$OS" == "Windows" ]]; then
     cmake .. -G "Visual Studio 17 2022"
     cmake --build .
 elif [[ "$OS" == "Linux" || "$OS" == "MacOS" ]]; then
-    cmake ..
+    cmake .. 
     make
 fi
 cd "${BASE_PATH}"
