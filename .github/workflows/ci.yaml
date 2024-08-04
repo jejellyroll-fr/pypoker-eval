@@ -19,34 +19,47 @@ jobs:
       name: Check out repository code
       with:
         submodules: true
-    - name: Set up Anaconda
+
+    - name: Set up Miniconda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: "3.11"
+        activate-environment: fpdb311
+
+    - name: Install dependencies
+      shell: bash -l {0}
       run: |
-        wget https://repo.anaconda.com/archive/Anaconda3-2023.07-1-Linux-x86_64.sh -O anaconda.sh
-        bash anaconda.sh -b -p $HOME/anaconda
-        echo "$HOME/anaconda/bin" >> $GITHUB_PATH
-    - name: Create and activate conda environment
-      run: |
-        source $HOME/anaconda/bin/activate
-        conda create -n fpdb311 python=3.11 -y
-        source $HOME/anaconda/bin/activate fpdb311
-        conda activate fpdb311
-    - name: Install CMake and Make (Linux)
-      run: sudo apt-get install -y cmake make
+        conda install -y cmake make
+        sudo apt-get update
+        sudo apt-get install -y libbz2-dev
+
     - name: Build poker-eval (Linux)
+      shell: bash -l {0}
       run: |
-        source $HOME/anaconda/bin/activate fpdb311
         cd poker-eval
         mkdir -p build
         cd build
         cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
         make
         cd ../..
+
     - name: Build pypoker-eval (Linux)
+      shell: bash -l {0}
       run: |
-        source $HOME/anaconda/bin/activate fpdb311
         mkdir -p build
         cd build
-        cmake -DPython3_EXECUTABLE=$(which python) -DPython3_INCLUDE_DIR=$(python -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
-        make
+        cmake -DPython3_EXECUTABLE=$(which python) \
+              -DPython3_INCLUDE_DIR=$(python -c "import sysconfig; print(sysconfig.get_path('include'))") \
+              -DPython3_LIBRARY=$(python -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR') + '/libpython' + sysconfig.get_config_var('LDVERSION') + '.so')") \
+              ..
+        make VERBOSE=1
         cd ..
-        cp build/pypokereval.so _pokereval_3_11.so
+        ls -R build
+        cp build/*pokereval*.so _pokereval_3_11.so || true
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: pokereval-linux
+        path: _pokereval_3_11.so
