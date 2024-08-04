@@ -71,10 +71,17 @@ cd build
 if [[ "$OS" == "Windows" ]]; then
     cmake .. -G "Visual Studio 17 2022"
     cmake --build .
-elif [[ "$OS" == "Linux" || "$OS" == "MacOS" ]]; then
+elif [[ "$OS" == "MacOS" ]]; then
+    cmake -DPython3_EXECUTABLE=/usr/local/opt/python@3.11/libexec/bin/python3 \
+    -DPython3_INCLUDE_DIR=/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/include/python3.11 \
+    -DPython3_LIBRARY=/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/libpython3.11.dylib \
+    ..
+    make
+elif [[ "$OS" == "Linux" ]]; then
     cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
     make
 fi
+
 cd "${BASE_PATH}"
 
 if [[ "$OS" == "Windows" ]]; then
@@ -84,8 +91,8 @@ elif [[ "$OS" == "Linux" ]]; then
     echo "Copying and renaming pypokereval.so..."
     cp "${BASE_PATH}/build/pypokereval.so" "${BASE_PATH}/_pokereval_3_11.so"
 elif [[ "$OS" == "MacOS" ]]; then
-    echo "Copying and renaming pypokereval.dylib..."
-    cp "${BASE_PATH}/build/pypokereval.dylib" "${BASE_PATH}/_pokereval_3_11.so"
+    echo "Copying and renaming pypokereval.so..."
+    cp "${BASE_PATH}/build/pypokereval.so" "${BASE_PATH}/_pokereval_3_11.so"
 fi
 
 echo "Build process completed."
