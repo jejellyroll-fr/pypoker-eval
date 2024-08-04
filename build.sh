@@ -39,6 +39,8 @@ if [ -d "${BASE_PATH}/poker-eval" ]; then
 fi
 git submodule update --init --recursive
 
+
+
 # Build poker-eval
 echo "Building poker-eval..."
 cd "${BASE_PATH}/poker-eval"
@@ -52,7 +54,7 @@ if [[ "$OS" == "Windows" ]]; then
     cmake .. -G "Visual Studio 17 2022"
     cmake --build .
 elif [[ "$OS" == "Linux" || "$OS" == "MacOS" ]]; then
-    cmake .. 
+    cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     make
 fi
 cd "${BASE_PATH}"
@@ -70,7 +72,7 @@ if [[ "$OS" == "Windows" ]]; then
     cmake .. -G "Visual Studio 17 2022"
     cmake --build .
 elif [[ "$OS" == "Linux" || "$OS" == "MacOS" ]]; then
-    cmake ..
+    cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
     make
 fi
 cd "${BASE_PATH}"
@@ -78,4 +80,12 @@ cd "${BASE_PATH}"
 if [[ "$OS" == "Windows" ]]; then
     echo "Renaming and moving pypokereval.dll..."
     mv "${BASE_PATH}/build/Debug/pypokereval.dll" "${BASE_PATH}/_pokereval_3_11.pyd"
+elif [[ "$OS" == "Linux" ]]; then
+    echo "Copying and renaming pypokereval.so..."
+    cp "${BASE_PATH}/build/pypokereval.so" "${BASE_PATH}/_pokereval_3_11.so"
+elif [[ "$OS" == "MacOS" ]]; then
+    echo "Copying and renaming pypokereval.dylib..."
+    cp "${BASE_PATH}/build/pypokereval.dylib" "${BASE_PATH}/_pokereval_3_11.so"
 fi
+
+echo "Build process completed."
