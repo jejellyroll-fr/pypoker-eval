@@ -26,7 +26,7 @@ jobs:
         run: |
           mkdir build-arm64
           cd build-arm64
-          cmake -DCMAKE_TOOLCHAIN_FILE=../arm-toolchain.cmake ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=../arm-toolchain.cmake -DPython3_EXECUTABLE=/usr/bin/python3.11 -DPython3_INCLUDE_DIR=/usr/include/python3.11 -DPython3_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.11.so ..
           make
 
       - name: Make artifact executable (ARM64)
@@ -36,14 +36,13 @@ jobs:
         run: |
           cp pokereval.py build-arm64/
           cp test.py build-arm64/
-          cp build-arm64/libpypokereval.so build-arm64/pypokereval.so
+          cp build-arm64/libpypokereval.so build-arm64/_pokereval_3_11.so
 
       - name: Upload artifact 
         uses: actions/upload-artifact@v2
         with:
           name: poker-eval-linux-arm64
           path: build-arm64/*
-
 
   build-linux:
     runs-on: ubuntu-latest
@@ -93,7 +92,7 @@ jobs:
         run: |
           cp pokereval.py build/
           cp test.py build/
-          cp build/_pokereval_3_11.so build/pypokereval.so
+          cp _pokereval_3_11.so build/pypokereval.so
 
       - name: Upload artifact 
         uses: actions/upload-artifact@v2
@@ -155,7 +154,7 @@ jobs:
         run: |
           Copy-Item pokereval.py build/
           Copy-Item test.py build/
-          Copy-Item build/_pokereval_3_11.pyd build/pypokereval.pyd
+          Copy-Item _pokereval_3_11.pyd build/_pokereval_3_11.pyd
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -202,7 +201,7 @@ jobs:
         run: |
           cp pokereval.py build/
           cp test.py build/
-          cp _pokereval_3_11.so build/pypokereval.so
+          cp _pokereval_3_11.so build/_pokereval_3_11.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
@@ -249,7 +248,7 @@ jobs:
         run: |
           cp pokereval.py build/
           cp test.py build/
-          cp _pokereval_3_11.so build/pypokereval.so
+          cp _pokereval_3_11.so build/_pokereval_3_11.so
 
       - name: Upload artifact
         uses: actions/upload-artifact@v2
