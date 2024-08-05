@@ -7,6 +7,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set(Python3_EXECUTABLE "$ENV{USERPROFILE}/AppData/Local/Programs/Python/Python311/python.exe")
         set(Python3_LIBRARY "$ENV{USERPROFILE}/AppData/Local/Programs/Python/Python311/libs/python311.lib")
         set(Python3_INCLUDE_DIR "$ENV{USERPROFILE}/AppData/Local/Programs/Python/Python311/include")
+    elseif(EXISTS "$ENV{USERPROFILE}/Anaconda3/python.exe")
+        set(Python3_EXECUTABLE "$ENV{USERPROFILE}/Anaconda3/python.exe")
+        set(Python3_LIBRARY "$ENV{USERPROFILE}/Anaconda3/libs/python311.lib")
+        set(Python3_INCLUDE_DIR "$ENV{USERPROFILE}/Anaconda3/include")
     else()
         set(Python3_EXECUTABLE "C:/Python311/python.exe")
         set(Python3_LIBRARY "C:/Python311/libs/python311.lib")
@@ -33,6 +37,7 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
         set(Python3_INCLUDE_DIR "$ENV{HOME}/anaconda3/include/python3.11")
     endif()
 endif()
+
 
 # Trouver Python 3.x
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)

@@ -12,49 +12,31 @@ on:
       - main
 
 jobs:
-  build-on-linux:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      name: Check out repository code
-      with:
-        submodules: true
-    - name: Set up Miniconda
-      uses: conda-incubator/setup-miniconda@v2
-      with:
-        auto-update-conda: true
-        python-version: "3.11"
-        activate-environment: fpdb311
-    - name: Install Python development headers
-      shell: bash -l {0}
-      run: |
-        conda install -y python=3.11
-        sudo apt-get update
-        sudo apt-get install -y python3-dev
-    - name: Build poker-eval (Linux)
-      shell: bash -l {0}
-      run: |
-        cd poker-eval
-        mkdir -p build
-        cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        make
-        cd ../..
-    - name: Build pypoker-eval (Linux)
-      shell: bash -l {0}
-      run: |
-        mkdir -p build
-        cd build
-        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-        cmake --build . --verbose
-        cd ..
-        find . -name "*pokereval*.so"
-        cp build/*pokereval*.so _pokereval_3_11.so || true
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: pokereval-linux
-        path: _pokereval_3_11.so
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.11 python3.11-dev
+
+      - name: Configure, Build and Test
+        run: |
+          mkdir -p build
+          cd build
+          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
+          cmake --build . --verbose
+          cd ..
+          find . -name "*pokereval*.so"
+          cp build/*pokereval*.so _pokereval_3_11.so || true
         
   build-linux-arm:
     runs-on: ubuntu-latest
@@ -84,50 +66,35 @@ jobs:
           cmake --build . &&
           ctest --output-on-failure"
 
-  build-on-windows:
+  build-windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install cmake
-    - name: Debug - Print Python Info
-      run: |
-        Write-Host "Python Executable: $env:PYTHON"
-        Write-Host "Python Root: $env:PYTHON_ROOT"
-        Get-ChildItem -Path $env:PYTHON_ROOT -Recurse | Select-Object FullName
-    - name: Build poker-eval (Windows)
-      run: |
-        cd poker-eval
-        mkdir build
-        cd build
-        cmake .. -G "Visual Studio 17 2022" -A x64
-        cmake --build . --config Release
-        cd ../..
-    - name: Build pypoker-eval (Windows)
-      run: |
-        mkdir build
-        cd build
-        $pythonRoot = $env:PYTHON_ROOT
-        $pythonExe = Join-Path $pythonRoot "python.exe"
-        $pythonLib = Join-Path $pythonRoot "libs\python311.lib"
-        $pythonInclude = Join-Path $pythonRoot "include"
-        cmake .. -G "Visual Studio 17 2022" -A x64 -DPYTHON_EXECUTABLE="$pythonExe" -DPYTHON_LIBRARY="$pythonLib" -DPYTHON_INCLUDE_DIR="$pythonInclude"
-        cmake --build . --config Release --verbose
-        cd ..
-        Get-ChildItem -Recurse -Filter "*pokereval*.pyd" | Copy-Item -Destination _pokereval_3_11.pyd -Force
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: pokereval-windows
-        path: _pokereval_3_11.pyd
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+
+      - name: Configure, Build and Test
+        shell: pwsh
+        run: |
+          $pythonRoot = $env:pythonLocation
+          $pythonExe = Join-Path $pythonRoot "python.exe"
+          $pythonLib = Join-Path $pythonRoot "libs\python311.lib"
+          $pythonInclude = Join-Path $pythonRoot "include"
+          
+          mkdir build
+          cd build
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DPYTHON_EXECUTABLE="$pythonExe" -DPYTHON_LIBRARY="$pythonLib" -DPYTHON_INCLUDE_DIR="$pythonInclude"
+          cmake --build . --config Release --verbose
+          cd ..
+          
+          # Copier le fichier de sortie pour une utilisation ultérieure
+          Get-ChildItem -Recurse -Filter "*pokereval*.pyd" | Copy-Item -Destination _pokereval_3_11.pyd -Force
+    env:
+      PYTHON_ROOT: ${{ secrets.PYTHON_ROOT }}
 
   build-on-macos:
     runs-on: macos-latest
