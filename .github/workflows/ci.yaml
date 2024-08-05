@@ -32,11 +32,18 @@ jobs:
       - name: Make artifact executable (ARM64)
         run: chmod +x build-arm64/*
 
-      - name: Upload installer as artifact 
+      - name: Create artifact package
+        run: |
+          cp pokereval.py build-arm64/
+          cp test.py build-arm64/
+          cp build-arm64/libpypokereval.so build-arm64/pypokereval.so
+
+      - name: Upload artifact 
         uses: actions/upload-artifact@v2
         with:
           name: poker-eval-linux-arm64
           path: build-arm64/*
+
 
   build-linux:
     runs-on: ubuntu-latest
@@ -81,6 +88,18 @@ jobs:
 
           # Copy and rename the output
           cp ./build/pypokereval.so ./_pokereval_3_11.so
+
+      - name: Create artifact package
+        run: |
+          cp pokereval.py build/
+          cp test.py build/
+          cp build/_pokereval_3_11.so build/pypokereval.so
+
+      - name: Upload artifact 
+        uses: actions/upload-artifact@v2
+        with:
+          name: poker-eval-linux
+          path: build/*
 
   build-windows:
     runs-on: windows-latest
@@ -132,74 +151,108 @@ jobs:
           # Copy and rename the output
           Copy-Item "./build/Debug/pypokereval.pyd" "./_pokereval_3_11.pyd" -Force
 
+      - name: Create artifact package
+        run: |
+          Copy-Item pokereval.py build/
+          Copy-Item test.py build/
+          Copy-Item build/_pokereval_3_11.pyd build/pypokereval.pyd
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: poker-eval-windows
+          path: build/*
+
   build-on-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install cmake
-    - name: Build poker-eval (macOS)
-      run: |
-        cd poker-eval
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        make
-        cd ../..
-    - name: Build pypoker-eval (macOS)
-      run: |
-        mkdir build
-        cd build
-        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-        cmake --build . --verbose
-        cd ..
-        find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: pokereval-macos
-        path: _pokereval_3_11.so
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cmake
+
+      - name: Build poker-eval (macOS)
+        run: |
+          cd poker-eval
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          make
+          cd ../..
+
+      - name: Build pypoker-eval (macOS)
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
+          cmake --build . --verbose
+          cd ..
+          find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+
+      - name: Create artifact package
+        run: |
+          cp pokereval.py build/
+          cp test.py build/
+          cp _pokereval_3_11.so build/pypokereval.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: poker-eval-macos
+          path: build/*
 
   build-on-macos-arm:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        submodules: true
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install cmake
-    - name: Build poker-eval (macOS ARM)
-      run: |
-        cd poker-eval
-        mkdir build
-        cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_OSX_ARCHITECTURES=arm64
-        make
-        cd ../..
-    - name: Build pypoker-eval (macOS ARM)
-      run: |
-        mkdir build
-        cd build
-        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_OSX_ARCHITECTURES=arm64 ..
-        cmake --build . --verbose
-        cd ..
-        find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: pokereval-macos-arm
-        path: _pokereval_3_11.so
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install cmake
+
+      - name: Build poker-eval (macOS ARM)
+        run: |
+          cd poker-eval
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_OSX_ARCHITECTURES=arm64
+          make
+          cd ../..
+
+      - name: Build pypoker-eval (macOS ARM)
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_OSX_ARCHITECTURES=arm64 ..
+          cmake --build . --verbose
+          cd ..
+          find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+
+      - name: Create artifact package
+        run: |
+          cp pokereval.py build/
+          cp test.py build/
+          cp _pokereval_3_11.so build/pypokereval.so
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: poker-eval-macos-arm
+          path: build/*
