@@ -55,34 +55,34 @@ jobs:
       with:
         name: pokereval-linux
         path: _pokereval_3_11.so
-
+        
   build-linux-arm:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
-      
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v2
-      with:
-        platforms: arm
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-      
-    - name: Build Docker image
-      run: |
-        docker buildx create --use
-        docker buildx build --platform linux/arm64 -t my-arm-build .
-      
-    - name: Run Docker container
-      run: |
-        docker run --rm my-arm-build /bin/sh -c "
-        mkdir build &&
-        cd build &&
-        cmake .. &&
-        cmake --build . &&
-        ctest --output-on-failure"
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        run: |
+          docker buildx create --use
+          docker buildx build --platform linux/arm64 -t my-arm-build .
+
+      - name: Run Docker container
+        run: |
+          docker run --rm my-arm-build /bin/sh -c "
+          mkdir build &&
+          cd build &&
+          cmake .. &&
+          cmake --build . &&
+          ctest --output-on-failure"
 
   build-on-windows:
     runs-on: windows-latest
