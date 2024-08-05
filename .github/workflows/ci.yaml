@@ -36,7 +36,7 @@ jobs:
           docker run --rm my-arm-build /bin/sh -c "
           mkdir build &&
           cd build &&
-          cmake .. &&
+          cmake -DPython3_ROOT_DIR=$Python3_ROOT_DIR -DPython3_INCLUDE_DIR=$Python3_INCLUDE_DIR -DPython3_LIBRARY=$Python3_LIBRARY .. &&
           cmake --build . &&
           ctest --output-on-failure"
 

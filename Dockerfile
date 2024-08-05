@@ -20,13 +20,16 @@ RUN chmod +x cmake-3.22.3-linux-aarch64.sh
 RUN ./cmake-3.22.3-linux-aarch64.sh --skip-license --prefix=/usr/local
 
 
+ENV Python3_ROOT_DIR=/usr/bin/python3.11
+ENV Python3_INCLUDE_DIR=/usr/include/python3.11
+ENV Python3_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.11.so
+
+
 COPY . /workspace
 WORKDIR /workspace
 
 
-
-
-RUN mkdir build && cd build && cmake .. && cmake --build .
+RUN mkdir build && cd build && cmake -DPython3_ROOT_DIR=$Python3_ROOT_DIR -DPython3_INCLUDE_DIR=$Python3_INCLUDE_DIR -DPython3_LIBRARY=$Python3_LIBRARY .. && cmake --build .
 
 
 CMD ["/bin/bash"]
