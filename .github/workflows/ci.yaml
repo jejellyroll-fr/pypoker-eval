@@ -46,11 +46,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3.11 python3.11-dev cmake make git
+          sudo apt-get install -y python3.11 python3.11-dev cmake make
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -62,23 +62,23 @@ jobs:
           set -e
           
           # Initialize submodules
-          if [ -d "./poker-eval" ]; then
-              rm -rf ./poker-eval
-          fi
           git submodule update --init --recursive
           
           # Build poker-eval
-          cd ./poker-eval
+          cd poker-eval
           mkdir -p build
           cd build
           cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           make
-          cd ../../
+          cd ../..
 
           # Build pypoker-eval
           mkdir -p build
           cd build
-          cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
+          cmake -DPython3_EXECUTABLE=$(which python3.11) \
+                -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") \
+                -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") \
+                ..
           make
           cd ..
 
@@ -105,28 +105,30 @@ jobs:
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
+          $ErrorActionPreference = "Stop"
 
           # Initialize submodules
-          if (Test-Path -Path "./poker-eval") {
-              Remove-Item -Recurse -Force "./poker-eval"
-          }
           git submodule update --init --recursive
           
           # Build poker-eval
-          cd "./poker-eval"
-          New-Item -ItemType Directory -Force -Path build
+          cd ./poker-eval
+          if (!(Test-Path -Path "build")) {
+              New-Item -ItemType Directory -Force -Path "build"
+          }
           cd build
-          cmake .. -G "Visual Studio 17 2022"
+          cmake .. -G "Visual Studio 17 2022" -A x64
           cmake --build . --config Release
-          cd ../../
+          cd ../..
 
           # Build pypoker-eval
-          New-Item -ItemType Directory -Force -Path build
+          if (!(Test-Path -Path "build")) {
+              New-Item -ItemType Directory -Force -Path "build"
+          }
           cd build
-          $pythonExe = "$env:pythonLocation\python.exe"
-          $pythonInclude = "$env:pythonLocation\include"
-          $pythonLib = "$env:pythonLocation\libs\python311.lib"
-          cmake .. -G "Visual Studio 17 2022" -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib
+          $pythonExe = "${{ env.pythonLocation }}\python.exe"
+          $pythonInclude = "${{ env.pythonLocation }}\include"
+          $pythonLib = "${{ env.pythonLocation }}\libs\python311.lib"
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib
           cmake --build . --config Release
           cd ..
 
