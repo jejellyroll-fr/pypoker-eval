@@ -12,7 +12,6 @@ on:
       - main
 
 jobs:
-
   build-linux-arm:
     runs-on: ubuntu-latest
     steps:
@@ -116,7 +115,7 @@ jobs:
               New-Item -ItemType Directory -Force -Path "build"
           }
           cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
           cd ../..
 
@@ -128,7 +127,7 @@ jobs:
           $pythonExe = "${{ env.pythonLocation }}\python.exe"
           $pythonInclude = "${{ env.pythonLocation }}\include"
           $pythonLib = "${{ env.pythonLocation }}\libs\python311.lib"
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib -DCMAKE_BUILD_TYPE=Release
           cmake --build . --config Release
           cd ..
 
