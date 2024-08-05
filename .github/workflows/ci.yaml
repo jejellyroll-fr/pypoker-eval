@@ -12,37 +12,37 @@ on:
       - main
 
 jobs:
-  build-linux-arm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  # build-linux-arm:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v2
 
-      - name: Install build tools and dependencies (ARM64)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake make gcc-aarch64-linux-gnu g++-aarch64-linux-gnu python3.11 python3.11-dev
+  #     - name: Install build tools and dependencies (ARM64)
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y cmake make gcc-aarch64-linux-gnu g++-aarch64-linux-gnu python3.11 python3.11-dev
 
-      - name: Build the project (ARM64)
-        run: |
-          mkdir build-arm64
-          cd build-arm64
-          cmake -DCMAKE_TOOLCHAIN_FILE=../arm-toolchain.cmake -DPython3_EXECUTABLE=/usr/bin/python3.11 -DPython3_INCLUDE_DIR=/usr/include/python3.11 -DPython3_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.11.so ..
-          make
+  #     - name: Build the project (ARM64)
+  #       run: |
+  #         mkdir build-arm64
+  #         cd build-arm64
+  #         cmake -DCMAKE_TOOLCHAIN_FILE=../arm-toolchain.cmake -DPython3_EXECUTABLE=/usr/bin/python3.11 -DPython3_INCLUDE_DIR=/usr/include/python3.11 -DPython3_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.11.so ..
+  #         make
 
-      - name: Make artifact executable (ARM64)
-        run: chmod +x build-arm64/*
+  #     - name: Make artifact executable (ARM64)
+  #       run: chmod +x build-arm64/*
 
-      - name: Create artifact package
-        run: |
-          cp pokereval.py build-arm64/
-          cp test.py build-arm64/
-          cp build-arm64/libpypokereval.so build-arm64/_pokereval_3_11.so
+  #     - name: Create artifact package
+  #       run: |
+  #         cp pokereval.py build-arm64/
+  #         cp test.py build-arm64/
+  #         cp build-arm64/libpypokereval.so build-arm64/_pokereval_3_11.so
 
-      - name: Upload artifact 
-        uses: actions/upload-artifact@v2
-        with:
-          name: poker-eval-linux-arm64
-          path: build-arm64/*
+  #     - name: Upload artifact 
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: poker-eval-linux-arm64
+  #         path: build-arm64/*
 
   build-linux:
     runs-on: ubuntu-latest
