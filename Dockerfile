@@ -20,7 +20,7 @@ COPY . /workspace
 WORKDIR /workspace
 
 
-RUN pip3 install -r requirements.txt
+
 
 
 RUN mkdir build && cd build && cmake .. && cmake --build .
