@@ -86,7 +86,7 @@ cd "${BASE_PATH}"
 
 if [[ "$OS" == "Windows" ]]; then
     echo "Renaming and moving pypokereval.dll..."
-    mv "${BASE_PATH}/build/Debug/pypokereval.dll" "${BASE_PATH}/_pokereval_3_11.pyd"
+    mv "${BASE_PATH}/build/Debug/pypokereval.pyd" "${BASE_PATH}/_pokereval_3_11.pyd"
 elif [[ "$OS" == "Linux" ]]; then
     echo "Copying and renaming pypokereval.so..."
     cp "${BASE_PATH}/build/pypokereval.so" "${BASE_PATH}/_pokereval_3_11.so"

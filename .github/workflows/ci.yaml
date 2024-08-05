@@ -56,44 +56,33 @@ jobs:
         name: pokereval-linux
         path: _pokereval_3_11.so
 
-  build-on-linux-arm:
-    runs-on: [self-hosted, linux, ARM64]
+  build-linux-arm:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
       with:
-        submodules: true
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
+        platforms: arm
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Build Docker image
       run: |
-        sudo apt-get update
-        sudo apt-get install -y software-properties-common
-        sudo add-apt-repository ppa:deadsnakes/ppa -y
-        sudo apt-get update
-        sudo apt-get install -y python3.11 python3.11-dev cmake make
-    - name: Build poker-eval
+        docker buildx create --use
+        docker buildx build --platform linux/arm64 -t my-arm-build .
+      
+    - name: Run Docker container
       run: |
-        cd poker-eval
-        mkdir -p build
-        cd build
-        cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-        make
-        cd ../..
-    - name: Build pypoker-eval
-      run: |
-        mkdir -p build
-        cd build
-        cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-        cmake --build . --verbose
-        cd ..
-        find . -name '*pokereval*.so' -exec cp {} _pokereval_3_11.so \; || true
-    - name: Upload artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: pokereval-linux-arm
-        path: _pokereval_3_11.so
+        docker run --rm my-arm-build /bin/sh -c "
+        mkdir build &&
+        cd build &&
+        cmake .. &&
+        cmake --build . &&
+        ctest --output-on-failure"
 
   build-on-windows:
     runs-on: windows-latest
