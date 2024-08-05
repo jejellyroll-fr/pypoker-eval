@@ -15,30 +15,28 @@ jobs:
   build-linux-arm:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v2
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+      - name: Install build tools and dependencies (ARM64)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make gcc-aarch64-linux-gnu g++-aarch64-linux-gnu python3.11 python3.11-dev
+
+      - name: Build the project (ARM64)
+        run: |
+          mkdir build-arm64
+          cd build-arm64
+          cmake -DCMAKE_TOOLCHAIN_FILE=../arm-toolchain.cmake ..
+          make
+
+      - name: Make artifact executable (ARM64)
+        run: chmod +x build-arm64/*
+
+      - name: Upload installer as artifact 
+        uses: actions/upload-artifact@v2
         with:
-          platforms: arm
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker image
-        run: |
-          docker buildx create --use
-          docker buildx build --platform linux/arm64 -t my-arm-build .
-
-      - name: Run Docker container
-        run: |
-          docker run --rm my-arm-build /bin/sh -c "
-          mkdir build &&
-          cd build &&
-          cmake -DPython3_ROOT_DIR=$Python3_ROOT_DIR -DPython3_INCLUDE_DIR=$Python3_INCLUDE_DIR -DPython3_LIBRARY=$Python3_LIBRARY .. &&
-          cmake --build . &&
-          ctest --output-on-failure"
+          name: poker-eval-linux-arm64
+          path: build-arm64/*
 
   build-linux:
     runs-on: ubuntu-latest

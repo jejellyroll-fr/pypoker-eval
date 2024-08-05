@@ -38,6 +38,15 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endif()
 endif()
 
+# Pour ARM Linux
+if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+    if(EXISTS "/usr/bin/python3.11")
+        set(Python3_EXECUTABLE "/usr/bin/python3.11")
+        set(Python3_LIBRARY "/usr/lib/aarch64-linux-gnu/libpython3.11.so")
+        set(Python3_INCLUDE_DIR "/usr/include/python3.11")
+    endif()
+endif()
+
 # Trouver Python 3.x
 find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
@@ -58,7 +67,11 @@ if(Python3_FOUND)
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-        set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
+        if(${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
+            set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
+        else()
+            set(POKER_EVAL_LIB_PATH "${CMAKE_SOURCE_DIR}/poker-eval/build/libpoker_lib_static.a")
+        endif()
     endif()
 
     # Vérifier l'existence de la bibliothèque poker-eval
