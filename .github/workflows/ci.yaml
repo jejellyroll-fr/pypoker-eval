@@ -12,32 +12,7 @@ on:
       - main
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.11
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3.11 python3.11-dev
-
-      - name: Configure, Build and Test
-        run: |
-          mkdir -p build
-          cd build
-          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-          cmake --build . --verbose
-          cd ..
-          find . -name "*pokereval*.so"
-          cp build/*pokereval*.so _pokereval_3_11.so || true
-        
   build-linux-arm:
     runs-on: ubuntu-latest
     steps:
@@ -66,6 +41,50 @@ jobs:
           cmake --build . &&
           ctest --output-on-failure"
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.11 python3.11-dev cmake make git
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+
+      - name: Build project
+        run: |
+          set -e
+          
+          # Initialize submodules
+          if [ -d "./poker-eval" ]; then
+              rm -rf ./poker-eval
+          fi
+          git submodule update --init --recursive
+          
+          # Build poker-eval
+          cd ./poker-eval
+          mkdir -p build
+          cd build
+          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          make
+          cd ../../
+
+          # Build pypoker-eval
+          mkdir -p build
+          cd build
+          cmake -DPython3_EXECUTABLE=$(which python3.11) -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") ..
+          make
+          cd ..
+
+          # Copy and rename the output
+          cp ./build/pypokereval.so ./_pokereval_3_11.so
+
   build-windows:
     runs-on: windows-latest
     steps:
@@ -77,24 +96,42 @@ jobs:
         with:
           python-version: 3.11
 
-      - name: Configure, Build and Test
+      - name: Install dependencies
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          git submodule update --init --recursive
+
+      - name: Build project
         shell: pwsh
         run: |
-          $pythonRoot = $env:pythonLocation
-          $pythonExe = Join-Path $pythonRoot "python.exe"
-          $pythonLib = Join-Path $pythonRoot "libs\python311.lib"
-          $pythonInclude = Join-Path $pythonRoot "include"
+          Set-StrictMode -Version Latest
+
+          # Initialize submodules
+          if (Test-Path -Path "./poker-eval") {
+              Remove-Item -Recurse -Force "./poker-eval"
+          }
+          git submodule update --init --recursive
           
-          mkdir build
+          # Build poker-eval
+          cd "./poker-eval"
+          New-Item -ItemType Directory -Force -Path build
           cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DPYTHON_EXECUTABLE="$pythonExe" -DPYTHON_LIBRARY="$pythonLib" -DPYTHON_INCLUDE_DIR="$pythonInclude"
-          cmake --build . --config Release --verbose
+          cmake .. -G "Visual Studio 17 2022"
+          cmake --build . --config Release
+          cd ../../
+
+          # Build pypoker-eval
+          New-Item -ItemType Directory -Force -Path build
+          cd build
+          $pythonExe = "$env:pythonLocation\python.exe"
+          $pythonInclude = "$env:pythonLocation\include"
+          $pythonLib = "$env:pythonLocation\libs\python311.lib"
+          cmake .. -G "Visual Studio 17 2022" -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib
+          cmake --build . --config Release
           cd ..
-          
-          # Copier le fichier de sortie pour une utilisation ultérieure
-          Get-ChildItem -Recurse -Filter "*pokereval*.pyd" | Copy-Item -Destination _pokereval_3_11.pyd -Force
-    env:
-      PYTHON_ROOT: ${{ secrets.PYTHON_ROOT }}
+
+          # Copy and rename the output
+          Copy-Item "./build/Release/pypokereval.pyd" "./_pokereval_3_11.pyd" -Force
 
   build-on-macos:
     runs-on: macos-latest
