@@ -109,17 +109,17 @@ jobs:
           # Initialize submodules
           git submodule update --init --recursive
           
-          # Build poker-eval
+          # Build poker-eval in Debug mode
           cd ./poker-eval
           if (!(Test-Path -Path "build")) {
               New-Item -ItemType Directory -Force -Path "build"
           }
           cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug
+          cmake --build . --config Debug
           cd ../..
 
-          # Build pypoker-eval
+          # Build pypoker-eval in Debug mode
           if (!(Test-Path -Path "build")) {
               New-Item -ItemType Directory -Force -Path "build"
           }
@@ -127,12 +127,12 @@ jobs:
           $pythonExe = "${{ env.pythonLocation }}\python.exe"
           $pythonInclude = "${{ env.pythonLocation }}\include"
           $pythonLib = "${{ env.pythonLocation }}\libs\python311.lib"
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib -DCMAKE_BUILD_TYPE=Release
-          cmake --build . --config Release
+          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib -DCMAKE_BUILD_TYPE=Debug
+          cmake --build . --config Debug
           cd ..
 
           # Copy and rename the output
-          Copy-Item "./build/Release/pypokereval.pyd" "./_pokereval_3_11.pyd" -Force
+          Copy-Item "./build/Debug/pypokereval.pyd" "./_pokereval_3_11.pyd" -Force
 
   build-on-macos:
     runs-on: macos-latest
