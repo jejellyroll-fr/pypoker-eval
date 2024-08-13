@@ -163,7 +163,7 @@ jobs:
           path: build/*
 
   build-on-macos:
-    runs-on: macos-14-large
+    runs-on: macos-latest-large
     steps:
       - uses: actions/checkout@v3
         with:
