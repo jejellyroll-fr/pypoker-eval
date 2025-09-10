@@ -5,11 +5,15 @@ on:
   push:
     branches:
       - main
+      - master
+      - development
     tags:
       - '*'
   pull_request:
     branches:
       - main
+      - master
+      - development
 
 jobs:
   # build-linux-arm:
@@ -46,212 +50,395 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    name: Linux Python ${{ matrix.python-version }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Install dependencies
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3.11 python3.11-dev cmake make
+          sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev cmake make
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.11
+      - name: Install uv (if available)
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Test if uv works
+          if command -v uv >/dev/null 2>&1; then
+            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
+          fi
 
-      - name: Build project
+      - name: Build project and create wheel
         run: |
           set -e
-          
-          # Initialize submodules
-          git submodule update --init --recursive
-          
-          # Build poker-eval
-          cd poker-eval
-          mkdir -p build
-          cd build
-          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-          make
-          cd ../..
+          python build_wheel.py
 
-          # Build pypoker-eval
-          mkdir -p build
-          cd build
-          cmake -DPython3_EXECUTABLE=$(which python3.11) \
-                -DPython3_INCLUDE_DIR=$(python3.11 -c "from sysconfig import get_paths as gp; print(gp()['include'])") \
-                -DPython3_LIBRARY=$(python3.11 -c "from sysconfig import get_config_var as gcv; print(gcv('LIBDIR') + '/libpython3.11.so')") \
-                ..
-          make
-          cd ..
-
-          # Copy and rename the output
-          cp ./build/pypokereval.so ./_pokereval_3_11.so
-
-      - name: Create artifact package
-        run: |
-          cp pokereval.py build/
-          cp test.py build/
-          cp _pokereval_3_11.so build/pypokereval.so
-
-      - name: Upload artifact 
-        uses: actions/upload-artifact@v2
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-linux
-          path: build/*
+          name: wheel-linux-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+      - name: Upload binary artifact (legacy)
+        run: |
+          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          mkdir -p legacy-build/
+          cp pokereval.py legacy-build/
+          cp test.py legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
+            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          fi
+        
+      - name: Upload legacy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-eval-linux-py${{ matrix.python-version }}
+          path: legacy-build/*
 
   build-windows:
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    name: Windows Python ${{ matrix.python-version }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           git submodule update --init --recursive
 
-      - name: Build project
+      - name: Install uv (if available)
+        shell: pwsh
+        run: |
+          try {
+            Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
+            $env:PATH += ";$env:USERPROFILE\.local\bin"
+            if (Get-Command uv -ErrorAction SilentlyContinue) {
+              echo "UV_AVAILABLE=true" >> $env:GITHUB_ENV
+            } else {
+              echo "UV_AVAILABLE=false" >> $env:GITHUB_ENV
+            }
+          } catch {
+            echo "UV_AVAILABLE=false" >> $env:GITHUB_ENV
+          }
+
+      - name: Build project and create wheel
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
+          python build_wheel.py
 
-          # Initialize submodules
-          git submodule update --init --recursive
-          
-          # Build poker-eval in Debug mode
-          cd ./poker-eval
-          if (!(Test-Path -Path "build")) {
-              New-Item -ItemType Directory -Force -Path "build"
-          }
-          cd build
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug
-          cmake --build . --config Debug
-          cd ../..
-
-          # Build pypoker-eval in Debug mode
-          if (!(Test-Path -Path "build")) {
-              New-Item -ItemType Directory -Force -Path "build"
-          }
-          cd build
-          $pythonExe = "${{ env.pythonLocation }}\python.exe"
-          $pythonInclude = "${{ env.pythonLocation }}\include"
-          $pythonLib = "${{ env.pythonLocation }}\libs\python311.lib"
-          cmake .. -G "Visual Studio 17 2022" -A x64 -DPython3_EXECUTABLE=$pythonExe -DPython3_INCLUDE_DIR=$pythonInclude -DPython3_LIBRARY=$pythonLib -DCMAKE_BUILD_TYPE=Debug
-          cmake --build . --config Debug
-          cd ..
-
-          # Copy and rename the output
-          Copy-Item "./build/Debug/pypokereval.pyd" "./_pokereval_3_11.pyd" -Force
-
-      - name: Create artifact package
-        run: |
-          Copy-Item pokereval.py build/
-          Copy-Item test.py build/
-          Copy-Item _pokereval_3_11.pyd build/_pokereval_3_11.pyd
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-windows
-          path: build/*
+          name: wheel-windows-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+      - name: Upload binary artifact (legacy)
+        shell: pwsh
+        run: |
+          $pythonVersionShort = "${{ matrix.python-version }}".Replace('.', '')
+          New-Item -ItemType Directory -Force -Path "legacy-build"
+          Copy-Item pokereval.py legacy-build/
+          Copy-Item test.py legacy-build/
+          if (Test-Path "_pokereval_$pythonVersionShort.pyd") {
+            Copy-Item "_pokereval_$pythonVersionShort.pyd" "legacy-build/"
+          }
+        
+      - name: Upload legacy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-eval-windows-py${{ matrix.python-version }}
+          path: legacy-build/*
 
   build-on-macos:
     runs-on: macos-14-large
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    name: macOS Intel Python ${{ matrix.python-version }}
+    
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Build poker-eval (macOS)
+      - name: Install uv (if available)
         run: |
-          cd poker-eval
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-          make
-          cd ../..
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Test if uv works
+          if command -v uv >/dev/null 2>&1; then
+            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
+          fi
 
-      - name: Build pypoker-eval (macOS)
+      - name: Build project and create wheel
         run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON ..
-          cmake --build . --verbose
-          cd ..
-          find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+          python build_wheel.py
 
-      - name: Create artifact package
-        run: |
-          cp pokereval.py build/
-          cp test.py build/
-          cp _pokereval_3_11.so build/_pokereval_3_11.so
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-macos
-          path: build/*
+          name: wheel-macos-intel-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+      - name: Upload binary artifact (legacy)
+        run: |
+          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          mkdir -p legacy-build/
+          cp pokereval.py legacy-build/
+          cp test.py legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
+            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          fi
+        
+      - name: Upload legacy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-eval-macos-intel-py${{ matrix.python-version }}
+          path: legacy-build/*
 
   build-on-macos-arm:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    name: macOS ARM Python ${{ matrix.python-version }}
+    
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Build poker-eval (macOS ARM)
+      - name: Install uv (if available)
         run: |
-          cd poker-eval
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_OSX_ARCHITECTURES=arm64
-          make
-          cd ../..
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          # Test if uv works
+          if command -v uv >/dev/null 2>&1; then
+            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
+          else
+            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
+          fi
 
-      - name: Build pypoker-eval (macOS ARM)
+      - name: Build project and create wheel
         run: |
-          mkdir build
-          cd build
-          cmake -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON -DCMAKE_OSX_ARCHITECTURES=arm64 ..
-          cmake --build . --verbose
-          cd ..
-          find . -name "*pokereval*.so" -exec cp {} _pokereval_3_11.so \; || true
+          python build_wheel.py
 
-      - name: Create artifact package
-        run: |
-          cp pokereval.py build/
-          cp test.py build/
-          cp _pokereval_3_11.so build/_pokereval_3_11.so
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-macos-arm
-          path: build/*
+          name: wheel-macos-arm-py${{ matrix.python-version }}
+          path: dist/*.whl
+
+      - name: Upload binary artifact (legacy)
+        run: |
+          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          mkdir -p legacy-build/
+          cp pokereval.py legacy-build/
+          cp test.py legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
+            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          fi
+        
+      - name: Upload legacy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: poker-eval-macos-arm-py${{ matrix.python-version }}
+          path: legacy-build/*
+
+  # ============================================================================
+  # COLLECTION JOB - Collect all artifacts
+  # ============================================================================
+  collect-artifacts:
+    name: Collect All Artifacts
+    needs: [build-linux, build-windows, build-on-macos, build-on-macos-arm]
+    runs-on: ubuntu-latest
+    if: always() && (needs.build-linux.result == 'success' || needs.build-windows.result == 'success' || needs.build-on-macos.result == 'success' || needs.build-on-macos-arm.result == 'success')
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: all-artifacts/
+
+    - name: Display artifact structure
+      run: |
+        echo "=== Artifact Structure ==="
+        find all-artifacts/ -type f | sort
+        echo ""
+        echo "=== Build Summary ==="
+        find all-artifacts/ -name "*.so" -o -name "*.pyd" | wc -l | xargs echo "Number of binaries:"
+        find all-artifacts/ -name "*.whl" | wc -l | xargs echo "Number of wheels:"
+
+    - name: Create release package
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        mkdir -p release-package/wheels release-package/binaries
+        
+        # Create comprehensive README
+        cat > release-package/README.md << 'EOL'
+        # PyPoker-Eval Multi-Platform Release
+
+        This release contains pre-compiled binaries and wheels for multiple platforms.
+
+        ## Installation Options
+
+        ### Option 1: Using Wheels (Recommended for uv users)
+        Install with uv: uv pip install pypoker_eval-*.whl
+        Install with pip: pip install pypoker_eval-*.whl
+
+        ### Option 2: Using Binaries (Legacy)  
+        1. Download the appropriate binary for your platform
+        2. Place it in the same folder as pokereval.py
+        3. Import normally: import pokereval
+
+        ## Supported Platforms
+
+        ### Wheels Available
+        - Linux: Python 3.9, 3.10, 3.11, 3.12
+        - Windows: Python 3.9, 3.10, 3.11, 3.12  
+        - macOS Intel: Python 3.9, 3.10, 3.11, 3.12
+        - macOS ARM: Python 3.9, 3.10, 3.11, 3.12
+
+        ### Legacy Binaries Available
+        Same platforms as wheels, for direct usage.
+
+        Total: 16 wheels + 16 binaries = 32 artifacts
+
+        ## Usage with uv
+        This release is fully compatible with uv Python environments!
+        EOL
+        
+        # Copy all wheels
+        find all-artifacts/ -name "*.whl" -exec cp {} release-package/wheels/ \;
+        
+        # Copy all binaries  
+        find all-artifacts/ -name "*.so" -exec cp {} release-package/binaries/ \;
+        find all-artifacts/ -name "*.pyd" -exec cp {} release-package/binaries/ \;
+        
+        # Copy Python files (from any artifact)
+        find all-artifacts/ -name "pokereval.py" -exec cp {} release-package/ \; | head -1
+        find all-artifacts/ -name "test.py" -exec cp {} release-package/ \; | head -1
+        
+        # Summary
+        echo ""
+        echo "=== Release Package Summary ==="
+        echo "Wheels: $(find release-package/wheels/ -name '*.whl' | wc -l)"
+        echo "Binaries: $(find release-package/binaries/ -name '*.so' -o -name '*.pyd' | wc -l)"
+
+    - name: Upload release package
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/upload-artifact@v4
+      with:
+        name: pypoker-eval-complete-release
+        path: release-package/*
+
+
+  github-release:
+    name: Create GitHub Release
+    needs: [collect-artifacts]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Download release package
+      uses: actions/download-artifact@v4
+      with:
+        name: pypoker-eval-complete-release
+        path: release/
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release/*
+        generate_release_notes: true
+        draft: false
+        name: PyPoker-Eval ${{ github.ref_name }}
+        body: |
+          ## Multi-Platform Release
+          
+          This automatic release contains pre-compiled binaries and wheels for:
+          
+          ### Supported Platforms
+          - **Linux** (x86_64)
+          - **Windows** (x64) 
+          - **macOS Intel** (x86_64)
+          - **macOS ARM** (arm64)
+          
+          ### Supported Python Versions
+          - Python 3.9
+          - Python 3.10  
+          - Python 3.11
+          - Python 3.12
+          
+          **Total: 16 different configurations** ✨
+          
+          ### Installation
+          
+          **Option 1: Using Wheels (Recommended)**
+          ```bash
+          # With uv
+          uv pip install pypoker_eval-*.whl
+          
+          # With pip  
+          pip install pypoker_eval-*.whl
+          ```
+          
+          **Option 2: Using Binaries (Legacy)**
+          1. Download the binary for your platform
+          2. Place it in the same folder as `pokereval.py`
+          3. Use normally with `import pokereval`
+          
+          ### uv Compatibility
+          This release is fully compatible with uv Python environments!
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
