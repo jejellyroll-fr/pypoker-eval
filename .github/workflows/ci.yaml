@@ -54,7 +54,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-    name: Linux Python ${{ matrix.python-version }}
+        build-method: ['uv', 'python']
+    name: Linux Python ${{ matrix.python-version }} (${{ matrix.build-method }})
     
     steps:
       - name: Checkout repository
@@ -68,18 +69,19 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python${{ matrix.python-version }} python${{ matrix.python-version }}-dev cmake make
+          sudo apt-get install -y cmake make
 
-      - name: Install uv (if available)
+      - name: Install uv (if needed)
+        if: matrix.build-method == 'uv'
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          # Test if uv works
-          if command -v uv >/dev/null 2>&1; then
-            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
-          else
-            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
-          fi
+          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+
+      - name: Set build method
+        if: matrix.build-method == 'python'
+        run: |
+          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
         run: |
@@ -89,7 +91,7 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-linux-py${{ matrix.python-version }}
+          name: wheel-linux-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: dist/*.whl
 
       - name: Upload binary artifact (legacy)
@@ -105,7 +107,7 @@ jobs:
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-linux-py${{ matrix.python-version }}
+          name: poker-eval-linux-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: legacy-build/*
 
   build-windows:
@@ -114,7 +116,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-    name: Windows Python ${{ matrix.python-version }}
+        build-method: ['uv', 'python']
+    name: Windows Python ${{ matrix.python-version }} (${{ matrix.build-method }})
     
     steps:
       - name: Checkout repository
@@ -130,32 +133,40 @@ jobs:
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           git submodule update --init --recursive
 
-      - name: Install uv (if available)
+      - name: Install uv (if needed)
+        if: matrix.build-method == 'uv'
         shell: pwsh
         run: |
           try {
             Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
             $env:PATH += ";$env:USERPROFILE\.local\bin"
-            if (Get-Command uv -ErrorAction SilentlyContinue) {
-              echo "UV_AVAILABLE=true" >> $env:GITHUB_ENV
-            } else {
-              echo "UV_AVAILABLE=false" >> $env:GITHUB_ENV
-            }
+            echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
           } catch {
-            echo "UV_AVAILABLE=false" >> $env:GITHUB_ENV
+            Write-Error "Failed to install uv"
+            exit 1
           }
+
+      - name: Set build method
+        if: matrix.build-method == 'python'
+        run: echo "FORCE_BUILD_METHOD=python" >> $env:GITHUB_ENV
+
+      - name: Set UTF-8 encoding
+        if: runner.os == 'Windows'
+        run: chcp 65001
+        shell: cmd
 
       - name: Build project and create wheel
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
+          $env:PYTHONUTF8 = "1"
           python build_wheel.py
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-windows-py${{ matrix.python-version }}
+          name: wheel-windows-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: dist/*.whl
 
       - name: Upload binary artifact (legacy)
@@ -172,16 +183,17 @@ jobs:
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-windows-py${{ matrix.python-version }}
+          name: poker-eval-windows-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: legacy-build/*
 
   build-on-macos:
-    runs-on: macos-14-large
+    runs-on: macos-13
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-    name: macOS Intel Python ${{ matrix.python-version }}
+        build-method: ['uv', 'python']
+    name: macOS Intel Python ${{ matrix.python-version }} (${{ matrix.build-method }})
     
     steps:
       - uses: actions/checkout@v3
@@ -198,16 +210,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Install uv (if available)
+      - name: Install uv (if needed)
+        if: matrix.build-method == 'uv'
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          # Test if uv works
-          if command -v uv >/dev/null 2>&1; then
-            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
-          else
-            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
-          fi
+          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+
+      - name: Set build method
+        if: matrix.build-method == 'python'
+        run: |
+          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
         run: |
@@ -216,7 +229,7 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-macos-intel-py${{ matrix.python-version }}
+          name: wheel-macos-intel-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: dist/*.whl
 
       - name: Upload binary artifact (legacy)
@@ -232,7 +245,7 @@ jobs:
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-macos-intel-py${{ matrix.python-version }}
+          name: poker-eval-macos-intel-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: legacy-build/*
 
   build-on-macos-arm:
@@ -241,7 +254,8 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.12']
-    name: macOS ARM Python ${{ matrix.python-version }}
+        build-method: ['uv', 'python']
+    name: macOS ARM Python ${{ matrix.python-version }} (${{ matrix.build-method }})
     
     steps:
       - uses: actions/checkout@v3
@@ -258,16 +272,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Install uv (if available)
+      - name: Install uv (if needed)
+        if: matrix.build-method == 'uv'
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          # Test if uv works
-          if command -v uv >/dev/null 2>&1; then
-            echo "UV_AVAILABLE=true" >> $GITHUB_ENV
-          else
-            echo "UV_AVAILABLE=false" >> $GITHUB_ENV
-          fi
+          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+
+      - name: Set build method
+        if: matrix.build-method == 'python'
+        run: |
+          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
         run: |
@@ -276,7 +291,7 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheel-macos-arm-py${{ matrix.python-version }}
+          name: wheel-macos-arm-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: dist/*.whl
 
       - name: Upload binary artifact (legacy)
@@ -292,7 +307,7 @@ jobs:
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
-          name: poker-eval-macos-arm-py${{ matrix.python-version }}
+          name: poker-eval-macos-arm-py${{ matrix.python-version }}-${{ matrix.build-method }}
           path: legacy-build/*
 
   # ============================================================================
@@ -352,7 +367,7 @@ jobs:
         ### Legacy Binaries Available
         Same platforms as wheels, for direct usage.
 
-        Total: 16 wheels + 16 binaries = 32 artifacts
+        Total: 32 wheels + 32 binaries = 64 artifacts (16 uv + 16 python builds each)
 
         ## Usage with uv
         This release is fully compatible with uv Python environments!
@@ -420,7 +435,9 @@ jobs:
           - Python 3.11
           - Python 3.12
           
-          **Total: 16 different configurations** ✨
+          **Total: 32 different configurations** ✨
+          - 16 builds with uv
+          - 16 builds with standard Python
           
           ### Installation
           

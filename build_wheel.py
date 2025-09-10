@@ -11,17 +11,40 @@ import zipfile
 import tempfile
 import subprocess
 from pathlib import Path
+import io
+
+# Fix UTF-8 encoding issues on Windows
+if sys.platform.startswith('win') and hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 def detect_python_manager():
     """Detect if we're using uv or standard Python"""
-    # Check if uv is available
+    # Check if build method is forced via environment variable
+    forced_method = os.environ.get('FORCE_BUILD_METHOD')
+    if forced_method:
+        print(f"Build method forced to: {forced_method}")
+        if forced_method == 'uv':
+            # Verify uv is actually available
+            try:
+                result = subprocess.run(['uv', '--version'], 
+                                      capture_output=True, text=True, check=True)
+                print(f"uv verified: {result.stdout.strip()}")
+                return 'uv'
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                print("ERROR: uv forced but not available!")
+                sys.exit(1)
+        else:
+            return 'python'
+    
+    # Auto-detect if no force
     try:
         result = subprocess.run(['uv', '--version'], 
                               capture_output=True, text=True, check=True)
-        print(f"✅ uv detected: {result.stdout.strip()}")
+        print(f"uv detected: {result.stdout.strip()}")
         return 'uv'
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("⚠️  uv not available, using standard Python")
+        print("uv not available, using standard Python")
         return 'python'
 
 def get_python_info():
@@ -47,7 +70,7 @@ def get_python_info():
 
 def build_with_cmake(python_manager, python_version):
     """Build extension with CMake"""
-    print(f"🔨 Building with {python_manager} Python {python_version}...")
+    print(f"Building with {python_manager} Python {python_version}...")
     
     # Clean previous build
     if os.path.exists('build'):
@@ -55,7 +78,7 @@ def build_with_cmake(python_manager, python_version):
     os.makedirs('build')
     
     # Build poker-eval first
-    print("📦 Building poker-eval...")
+    print("Building poker-eval...")
     subprocess.run(['git', 'submodule', 'update', '--init', '--recursive'], check=True)
     
     poker_eval_build = Path('poker-eval/build')
@@ -67,7 +90,7 @@ def build_with_cmake(python_manager, python_version):
     os.chdir('../..')
     
     # Build pypoker-eval
-    print("🐍 Building pypoker-eval...")
+    print("Building pypoker-eval...")
     os.chdir('build')
     
     if python_manager == 'uv':
@@ -78,7 +101,7 @@ def build_with_cmake(python_manager, python_version):
         # Use current Python
         python_exe = sys.executable
     
-    print(f"🎯 Using Python: {python_exe}")
+    print(f"Using Python: {python_exe}")
     
     # CMake will automatically configure the right Python thanks to our modified CMakeLists.txt
     subprocess.run(['cmake', '..'], check=True)
@@ -89,7 +112,7 @@ def build_with_cmake(python_manager, python_version):
 
 def create_wheel(python_version, version_short, ext_name, platform_tag):
     """Create wheel with compiled extension"""
-    print(f"🎡 Creating wheel for {ext_name}...")
+    print(f"Creating wheel for {ext_name}...")
     
     # Find compiled extension
     possible_extensions = [
@@ -107,10 +130,10 @@ def create_wheel(python_version, version_short, ext_name, platform_tag):
             break
     
     if not extension_file:
-        print("❌ Compiled extension not found!")
+        print("ERROR: Compiled extension not found!")
         return False
     
-    print(f"📁 Extension found: {extension_file}")
+    print(f"Extension found: {extension_file}")
     
     # Copy with correct name
     target_ext = f"_pokereval_{version_short}"
@@ -121,8 +144,14 @@ def create_wheel(python_version, version_short, ext_name, platform_tag):
     
     shutil.copy2(extension_file, target_ext)
     
-    # Wheel version
-    wheel_version = f"3.{python_version.replace('.', '')}.0"
+    # Wheel version with build method suffix
+    build_method = os.environ.get('FORCE_BUILD_METHOD', 'auto')
+    if build_method == 'uv':
+        wheel_version = f"3.{python_version.replace('.', '')}.0+uv"
+    elif build_method == 'python':
+        wheel_version = f"3.{python_version.replace('.', '')}.0+python"
+    else:
+        wheel_version = f"3.{python_version.replace('.', '')}.0"
     
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -183,22 +212,22 @@ pypoker_eval-{wheel_version}.dist-info/RECORD,,
                     arc_name = os.path.relpath(file_path, temp_path)
                     zf.write(file_path, arc_name)
         
-        print(f"✅ Wheel created: {wheel_path}")
+        print(f"Wheel created: {wheel_path}")
         return wheel_path
 
 def main():
-    print("🚀 PyPoker-Eval Wheel Builder")
+    print("PyPoker-Eval Wheel Builder")
     print("=" * 40)
     
     # Detect environment
     python_manager = detect_python_manager()
     python_version, version_short, ext_name, platform_tag = get_python_info()
     
-    print(f"📋 Configuration:")
-    print(f"   • Manager: {python_manager}")
-    print(f"   • Python: {python_version}")
-    print(f"   • Extension: {ext_name}")
-    print(f"   • Platform: {platform_tag}")
+    print(f"Configuration:")
+    print(f"   Manager: {python_manager}")
+    print(f"   Python: {python_version}")
+    print(f"   Extension: {ext_name}")
+    print(f"   Platform: {platform_tag}")
     print()
     
     # Build
@@ -210,20 +239,20 @@ def main():
     if not wheel_path:
         sys.exit(1)
     
-    print(f"\n🎉 Success! Wheel available: {wheel_path}")
+    print(f"\nSuccess! Wheel available: {wheel_path}")
     
     # Quick test if possible
     if python_manager == 'uv':
-        print("\n🧪 Quick test with uv...")
+        print("\nQuick test with uv...")
         try:
             subprocess.run(['uv', 'pip', 'install', wheel_path, '--force-reinstall'], 
                          check=True, capture_output=True)
             result = subprocess.run(['uv', 'run', '--python', python_version, 
-                                   'python', '-c', 'import pokereval; print("✅ Import OK!")'], 
+                                   'python', '-c', 'import pokereval; print("Import OK!")'], 
                                   capture_output=True, text=True, check=True)
             print(result.stdout)
         except subprocess.CalledProcessError as e:
-            print(f"⚠️  Quick test failed: {e}")
+            print(f"Quick test failed: {e}")
 
 if __name__ == "__main__":
     main()
