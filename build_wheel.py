@@ -93,22 +93,60 @@ def build_with_cmake(python_manager, python_version):
     print("Building pypoker-eval...")
     os.chdir('build')
     
+    # Determine the correct Python executable
     if python_manager == 'uv':
         # Use uv Python if available
         python_exe = subprocess.run(['uv', 'run', f'--python', python_version, 'which', 'python'], 
                                   capture_output=True, text=True, check=True).stdout.strip()
     else:
-        # Use current Python
-        python_exe = sys.executable
+        # Try to find the right Python version
+        python_exe = find_python_executable(python_version)
     
     print(f"Using Python: {python_exe}")
     
-    # CMake will automatically configure the right Python thanks to our modified CMakeLists.txt
-    subprocess.run(['cmake', '..'], check=True)
+    # Verify Python version
+    result = subprocess.run([python_exe, '--version'], capture_output=True, text=True, check=True)
+    actual_version = result.stdout.strip().split()[1][:3]  # e.g. "3.11" from "Python 3.11.9"
+    
+    if actual_version != python_version:
+        print(f"WARNING: Expected Python {python_version}, got {actual_version}")
+    
+    # Force CMake to use the specific Python
+    cmake_cmd = [
+        'cmake', '..',
+        f'-DPython3_EXECUTABLE={python_exe}',
+    ]
+    
+    subprocess.run(cmake_cmd, check=True)
     subprocess.run(['cmake', '--build', '.'], check=True)
     
     os.chdir('..')
     return True
+
+def find_python_executable(version):
+    """Find the correct Python executable for the given version"""
+    # Common Python executable patterns
+    candidates = [
+        f'python{version}',
+        f'python{version[0]}.{version[2]}',
+        f'/usr/bin/python{version}',
+        f'/usr/local/bin/python{version}',
+        sys.executable  # Fallback to current
+    ]
+    
+    for candidate in candidates:
+        try:
+            result = subprocess.run([candidate, '--version'], 
+                                  capture_output=True, text=True, check=True)
+            actual_version = result.stdout.strip().split()[1][:3]
+            if actual_version == version:
+                return candidate
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    
+    # If no exact match, return current Python as fallback
+    print(f"Warning: Could not find Python {version}, using {sys.executable}")
+    return sys.executable
 
 def create_wheel(python_version, version_short, ext_name, platform_tag):
     """Create wheel with compiled extension"""
@@ -146,12 +184,13 @@ def create_wheel(python_version, version_short, ext_name, platform_tag):
     
     # Wheel version with build method suffix
     build_method = os.environ.get('FORCE_BUILD_METHOD', 'auto')
+    version_number = python_version.replace('.', '')
     if build_method == 'uv':
-        wheel_version = f"3.{python_version.replace('.', '')}.0+uv"
+        wheel_version = f"3.{version_number}.0+uv"
     elif build_method == 'python':
-        wheel_version = f"3.{python_version.replace('.', '')}.0+python"
+        wheel_version = f"3.{version_number}.0+python"
     else:
-        wheel_version = f"3.{python_version.replace('.', '')}.0"
+        wheel_version = f"3.{version_number}.0"
     
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)
@@ -219,23 +258,46 @@ def main():
     print("PyPoker-Eval Wheel Builder")
     print("=" * 40)
     
+    # Get target Python version from environment (passed by CI matrix)
+    target_python_version = os.environ.get('MATRIX_PYTHON_VERSION')
+    if not target_python_version:
+        # Fallback to current Python version
+        target_python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+        print(f"No target version specified, using current: {target_python_version}")
+    
     # Detect environment
     python_manager = detect_python_manager()
-    python_version, version_short, ext_name, platform_tag = get_python_info()
+    
+    # Use target version for naming
+    version_short = f"{target_python_version[0]}{target_python_version[2]}"
+    
+    # Platform detection
+    if sys.platform.startswith('win'):
+        ext_name = f"_pokereval_{version_short}.pyd"
+        platform_tag = "win_amd64"
+    elif sys.platform.startswith('darwin'):
+        ext_name = f"_pokereval_{version_short}.so"
+        if 'arm64' in os.uname().machine.lower():
+            platform_tag = "macosx_11_0_arm64"
+        else:
+            platform_tag = "macosx_10_15_x86_64"
+    else:  # Linux
+        ext_name = f"_pokereval_{version_short}.so"
+        platform_tag = "linux_x86_64"
     
     print(f"Configuration:")
     print(f"   Manager: {python_manager}")
-    print(f"   Python: {python_version}")
+    print(f"   Target Python: {target_python_version}")
     print(f"   Extension: {ext_name}")
     print(f"   Platform: {platform_tag}")
     print()
     
     # Build
-    if not build_with_cmake(python_manager, python_version):
+    if not build_with_cmake(python_manager, target_python_version):
         sys.exit(1)
     
     # Create wheel
-    wheel_path = create_wheel(python_version, version_short, ext_name, platform_tag)
+    wheel_path = create_wheel(target_python_version, version_short, ext_name, platform_tag)
     if not wheel_path:
         sys.exit(1)
     
@@ -247,7 +309,7 @@ def main():
         try:
             subprocess.run(['uv', 'pip', 'install', wheel_path, '--force-reinstall'], 
                          check=True, capture_output=True)
-            result = subprocess.run(['uv', 'run', '--python', python_version, 
+            result = subprocess.run(['uv', 'run', '--python', target_python_version, 
                                    'python', '-c', 'import pokereval; print("Import OK!")'], 
                                   capture_output=True, text=True, check=True)
             print(result.stdout)

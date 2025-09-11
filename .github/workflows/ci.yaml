@@ -84,9 +84,50 @@ jobs:
           echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
           python build_wheel.py
+
+      - name: Validate artifacts
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
+        run: |
+          set -e
+          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          
+          echo "=== Artifact Validation ==="
+          echo "Expected Python: ${{ matrix.python-version }}"
+          echo "Build method: ${{ matrix.build-method }}"
+          echo "Expected extension: _pokereval_${PYTHON_VER}.so"
+          
+          # Check if extension was built
+          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
+            echo "✅ Extension found: _pokereval_${PYTHON_VER}.so"
+            ls -la _pokereval_${PYTHON_VER}.so
+          else
+            echo "❌ Extension missing: _pokereval_${PYTHON_VER}.so"
+            echo "Available files:"
+            ls -la _pokereval_*.so || echo "No .so files found"
+            exit 1
+          fi
+          
+          # Check wheel was created
+          if [ -f dist/*.whl ]; then
+            echo "✅ Wheel created:"
+            ls -la dist/*.whl
+          else
+            echo "❌ Wheel missing"
+            exit 1
+          fi
+          
+          # Basic import test if possible
+          if command -v python${{ matrix.python-version }} >/dev/null 2>&1; then
+            echo "=== Testing import with Python ${{ matrix.python-version }} ==="
+            python${{ matrix.python-version }} -c "import sys; print(f'Using Python {sys.version}')"
+            python${{ matrix.python-version }} -c "import _pokereval_${PYTHON_VER}; print('✅ Extension imports OK')" || echo "⚠️  Extension import failed"
+          fi
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -156,6 +197,8 @@ jobs:
         shell: cmd
 
       - name: Build project and create wheel
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         shell: pwsh
         run: |
           Set-StrictMode -Version Latest
@@ -223,6 +266,8 @@ jobs:
           echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           python build_wheel.py
 
@@ -285,6 +330,8 @@ jobs:
           echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
 
       - name: Build project and create wheel
+        env:
+          MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           python build_wheel.py
 
