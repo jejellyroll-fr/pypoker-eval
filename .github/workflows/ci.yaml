@@ -178,24 +178,24 @@ jobs:
         if: matrix.build-method == 'uv'
         shell: pwsh
         run: |
-          try {
-            Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
-            $uvPath = "$env:USERPROFILE\.local\bin"
-            if (-Not (Test-Path $uvPath)) {
-              Write-Error "uv install directory does not exist: $uvPath"
-              exit 1
-            }
-            echo "$uvPath" >> $env:GITHUB_PATH
-            $env:Path += ";$uvPath"
-            if (-Not (Get-Command uv -ErrorAction SilentlyContinue)) {
-              Write-Error "uv is not installed or not in PATH"
-              exit 1
-            }
-            echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
-          } catch {
-            Write-Error "Failed to install uv: $($_.Exception.Message)"
+          Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
+          $uvPath1 = "$env:USERPROFILE\.local\bin"
+          $uvPath2 = "$env:USERPROFILE\.cargo\bin"
+          if (Test-Path $uvPath1) {
+            echo "$uvPath1" >> $env:GITHUB_PATH
+            $env:Path += ";$uvPath1"
+          } elseif (Test-Path $uvPath2) {
+            echo "$uvPath2" >> $env:GITHUB_PATH
+            $env:Path += ";$uvPath2"
+          } else {
+            Write-Error "uv install directory not found"
             exit 1
           }
+          if (-Not (Get-Command uv -ErrorAction SilentlyContinue)) {
+            Write-Error "uv is not installed or not in PATH"
+            exit 1
+          }
+          echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
 
       - name: Set build method
         if: matrix.build-method == 'python'
