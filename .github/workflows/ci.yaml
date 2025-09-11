@@ -71,12 +71,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make
 
-      - name: Install uv (if needed)
+      - name: Setup uv
         if: matrix.build-method == 'uv'
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+        uses: astral-sh/setup-uv@v1
+
+      - name: Set build method (uv)
+        if: matrix.build-method == 'uv'
+        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
 
       - name: Set build method
         if: matrix.build-method == 'python'
@@ -174,28 +175,13 @@ jobs:
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
           git submodule update --init --recursive
 
-      - name: Install uv (if needed)
+      - name: Setup uv
         if: matrix.build-method == 'uv'
-        shell: pwsh
-        run: |
-          Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
-          $uvPath1 = "$env:USERPROFILE\.local\bin"
-          $uvPath2 = "$env:USERPROFILE\.cargo\bin"
-          if (Test-Path $uvPath1) {
-            echo "$uvPath1" >> $env:GITHUB_PATH
-            $env:Path += ";$uvPath1"
-          } elseif (Test-Path $uvPath2) {
-            echo "$uvPath2" >> $env:GITHUB_PATH
-            $env:Path += ";$uvPath2"
-          } else {
-            Write-Error "uv install directory not found"
-            exit 1
-          }
-          if (-Not (Get-Command uv -ErrorAction SilentlyContinue)) {
-            Write-Error "uv is not installed or not in PATH"
-            exit 1
-          }
-          echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
+        uses: astral-sh/setup-uv@v1
+
+      - name: Set build method (uv)
+        if: matrix.build-method == 'uv'
+        run: echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
 
       - name: Set build method
         if: matrix.build-method == 'python'
@@ -263,12 +249,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Install uv (if needed)
+      - name: Setup uv
         if: matrix.build-method == 'uv'
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+        uses: astral-sh/setup-uv@v1
+
+      - name: Set build method (uv)
+        if: matrix.build-method == 'uv'
+        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
 
       - name: Set build method
         if: matrix.build-method == 'python'
@@ -327,12 +314,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install cmake
 
-      - name: Install uv (if needed)
+      - name: Setup uv
         if: matrix.build-method == 'uv'
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
+        uses: astral-sh/setup-uv@v1
+
+      - name: Set build method (uv)
+        if: matrix.build-method == 'uv'
+        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
 
       - name: Set build method
         if: matrix.build-method == 'python'
