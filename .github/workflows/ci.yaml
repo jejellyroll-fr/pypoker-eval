@@ -189,6 +189,7 @@ jobs:
         run: |
           echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
           Write-Host "Verifying uv installation..."
+          Get-Command uv -ErrorAction Stop
           uv --version
 
       - name: Set build method

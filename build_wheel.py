@@ -13,6 +13,24 @@ import subprocess
 from pathlib import Path
 import io
 
+def debug_subprocess(cmd, **kwargs):
+    """Debug wrapper for subprocess calls"""
+    print(f"DEBUG: Running command: {cmd}", file=sys.stderr)
+    print(f"DEBUG: Working directory: {os.getcwd()}", file=sys.stderr)
+    print(f"DEBUG: Subprocess kwargs: {kwargs}", file=sys.stderr)
+    try:
+        result = subprocess.run(cmd, **kwargs)
+        print(f"DEBUG: Command completed with return code: {result.returncode}", file=sys.stderr)
+        return result
+    except FileNotFoundError as e:
+        print(f"DEBUG: FileNotFoundError - Command not found: {cmd[0] if isinstance(cmd, list) else cmd}", file=sys.stderr)
+        print(f"DEBUG: Error details: {e}", file=sys.stderr)
+        print(f"DEBUG: Current PATH: {os.environ.get('PATH', 'NOT SET')}", file=sys.stderr)
+        raise
+    except Exception as e:
+        print(f"DEBUG: Unexpected error: {e}", file=sys.stderr)
+        raise
+
 # Fix UTF-8 encoding issues on Windows
 if sys.platform.startswith('win') and hasattr(sys.stdout, 'buffer'):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -27,7 +45,7 @@ def detect_python_manager():
         if forced_method == 'uv':
             # Verify uv is actually available
             try:
-                result = subprocess.run(['uv', '--version'], 
+                result = debug_subprocess(['uv', '--version'], 
                                       capture_output=True, text=True, check=True)
                 print(f"uv verified: {result.stdout.strip()}")
                 return 'uv'
@@ -39,7 +57,7 @@ def detect_python_manager():
     
     # Auto-detect if no force
     try:
-        result = subprocess.run(['uv', '--version'], 
+        result = debug_subprocess(['uv', '--version'], 
                               capture_output=True, text=True, check=True)
         print(f"uv detected: {result.stdout.strip()}")
         return 'uv'
@@ -79,14 +97,14 @@ def build_with_cmake(python_manager, python_version):
     
     # Build poker-eval first
     print("Building poker-eval...")
-    subprocess.run(['git', 'submodule', 'update', '--init', '--recursive'], check=True)
+    debug_subprocess(['git', 'submodule', 'update', '--init', '--recursive'], check=True)
     
     poker_eval_build = Path('poker-eval/build')
     poker_eval_build.mkdir(exist_ok=True)
     
     os.chdir('poker-eval/build')
-    subprocess.run(['cmake', '..', '-DCMAKE_POSITION_INDEPENDENT_CODE=ON'], check=True)
-    subprocess.run(['cmake', '--build', '.'], check=True)
+    debug_subprocess(['cmake', '..', '-DCMAKE_POSITION_INDEPENDENT_CODE=ON'], check=True)
+    debug_subprocess(['cmake', '--build', '.'], check=True)
     os.chdir('../..')
     
     # Build pypoker-eval
@@ -96,7 +114,7 @@ def build_with_cmake(python_manager, python_version):
     # Determine the correct Python executable
     if python_manager == 'uv':
         # Use uv Python if available
-        python_exe = subprocess.run(['uv', 'run', f'--python', python_version, 'which', 'python'], 
+        python_exe = debug_subprocess(['uv', 'run', f'--python', python_version, 'which', 'python'], 
                                   capture_output=True, text=True, check=True).stdout.strip()
     else:
         # Try to find the right Python version
@@ -105,7 +123,7 @@ def build_with_cmake(python_manager, python_version):
     print(f"Using Python: {python_exe}")
     
     # Verify Python version
-    result = subprocess.run([python_exe, '--version'], capture_output=True, text=True, check=True)
+    result = debug_subprocess([python_exe, '--version'], capture_output=True, text=True, check=True)
     actual_version = result.stdout.strip().split()[1][:3]  # e.g. "3.11" from "Python 3.11.9"
     
     if actual_version != python_version:
@@ -117,8 +135,8 @@ def build_with_cmake(python_manager, python_version):
         f'-DPython3_EXECUTABLE={python_exe}',
     ]
     
-    subprocess.run(cmake_cmd, check=True)
-    subprocess.run(['cmake', '--build', '.'], check=True)
+    debug_subprocess(cmake_cmd, check=True)
+    debug_subprocess(['cmake', '--build', '.'], check=True)
     
     os.chdir('..')
     return True
@@ -136,7 +154,7 @@ def find_python_executable(version):
     
     for candidate in candidates:
         try:
-            result = subprocess.run([candidate, '--version'], 
+            result = debug_subprocess([candidate, '--version'], 
                                   capture_output=True, text=True, check=True)
             actual_version = result.stdout.strip().split()[1][:3]
             if actual_version == version:
@@ -308,9 +326,9 @@ def main():
     if python_manager == 'uv':
         print("\nQuick test with uv...")
         try:
-            subprocess.run(['uv', 'pip', 'install', wheel_path, '--force-reinstall'], 
+            debug_subprocess(['uv', 'pip', 'install', wheel_path, '--force-reinstall'], 
                          check=True, capture_output=True)
-            result = subprocess.run(['uv', 'run', '--python', target_python_version, 
+            result = debug_subprocess(['uv', 'run', '--python', target_python_version, 
                                    'python', '-c', 'import pokereval; print("Import OK!")'], 
                                   capture_output=True, text=True, check=True)
             print(result.stdout)
