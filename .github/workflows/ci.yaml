@@ -173,7 +173,11 @@ jobs:
       - name: Install system dependencies
         run: |
           choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+
+      - name: Initialize git submodules
+        run: |
           git submodule update --init --recursive
+          git submodule status
 
       - name: Setup uv
         if: matrix.build-method == 'uv'
@@ -181,7 +185,11 @@ jobs:
 
       - name: Set build method (uv)
         if: matrix.build-method == 'uv'
-        run: echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
+        shell: pwsh
+        run: |
+          echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
+          Write-Host "Verifying uv installation..."
+          uv --version
 
       - name: Set build method
         if: matrix.build-method == 'python'
@@ -192,6 +200,29 @@ jobs:
         run: chcp 65001
         shell: cmd
 
+      - name: Debug environment before build
+        shell: pwsh
+        run: |
+          Write-Host "=== Debug Information ==="
+          Write-Host "Current directory: $PWD"
+          Write-Host "Environment variables:"
+          Write-Host "  MATRIX_PYTHON_VERSION: $env:MATRIX_PYTHON_VERSION"
+          Write-Host "  FORCE_BUILD_METHOD: $env:FORCE_BUILD_METHOD"
+          Write-Host ""
+          Write-Host "Files in current directory:"
+          Get-ChildItem -Force
+          Write-Host ""
+          Write-Host "Python executable:"
+          Get-Command python -ErrorAction SilentlyContinue | Select-Object Source
+          Write-Host ""
+          Write-Host "Git submodules status:"
+          git submodule status
+          Write-Host ""
+          if ($env:FORCE_BUILD_METHOD -eq 'uv') {
+            Write-Host "UV executable:"
+            Get-Command uv -ErrorAction SilentlyContinue | Select-Object Source
+          }
+
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -200,6 +231,7 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
           $env:PYTHONUTF8 = "1"
+          Write-Host "Starting build with Python $env:MATRIX_PYTHON_VERSION and method $env:FORCE_BUILD_METHOD"
           python build_wheel.py
 
       - name: Upload wheel artifact
