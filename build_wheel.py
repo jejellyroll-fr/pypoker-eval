@@ -268,8 +268,9 @@ def main():
     # Detect environment
     python_manager = detect_python_manager()
     
-    # Use target version for naming
-    version_short = f"{target_python_version[0]}{target_python_version[2]}"
+    # Use target version for naming - ensure proper format like "311" not "31"
+    version_parts = target_python_version.split('.')
+    version_short = f"{version_parts[0]}{version_parts[1]}"
     
     # Platform detection
     if sys.platform.startswith('win'):

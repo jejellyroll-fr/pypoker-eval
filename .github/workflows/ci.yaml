@@ -180,7 +180,7 @@ jobs:
         run: |
           try {
             Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
-            $env:PATH += ";$env:USERPROFILE\.local\bin"
+            echo "$env:USERPROFILE\.local\bin" >> $env:GITHUB_PATH
             echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
           } catch {
             Write-Error "Failed to install uv"
