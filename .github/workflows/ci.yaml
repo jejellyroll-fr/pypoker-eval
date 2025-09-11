@@ -180,10 +180,20 @@ jobs:
         run: |
           try {
             Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression
-            echo "$env:USERPROFILE\.local\bin" >> $env:GITHUB_PATH
+            $uvPath = "$env:USERPROFILE\.local\bin"
+            if (-Not (Test-Path $uvPath)) {
+              Write-Error "uv install directory does not exist: $uvPath"
+              exit 1
+            }
+            echo "$uvPath" >> $env:GITHUB_PATH
+            $env:Path += ";$uvPath"
+            if (-Not (Get-Command uv -ErrorAction SilentlyContinue)) {
+              Write-Error "uv is not installed or not in PATH"
+              exit 1
+            }
             echo "FORCE_BUILD_METHOD=uv" >> $env:GITHUB_ENV
           } catch {
-            Write-Error "Failed to install uv"
+            Write-Error "Failed to install uv: $($_.Exception.Message)"
             exit 1
           }
 
