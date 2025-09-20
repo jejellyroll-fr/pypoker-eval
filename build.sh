@@ -105,7 +105,31 @@ setup_uv_environment() {
     # Get Python paths from the virtual environment
     PYTHON_INCLUDE=$($PYTHON_EXEC -c "from sysconfig import get_paths as gp; print(gp()['include'])")
     if [[ "$OS" == "Windows" ]]; then
-        PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'python{sysconfig.get_python_version().replace(\".\", \"\")}.lib'))")
+        # For Windows, use a more robust approach to find the library
+        PYTHON_LIBRARY=$($PYTHON_EXEC -c "
+import sys
+import os
+import sysconfig
+
+# Get the base prefix (installation directory)
+base_prefix = sys.base_prefix
+version = sysconfig.get_python_version().replace('.', '')
+
+# Try different possible locations for the library
+possible_paths = [
+    os.path.join(base_prefix, 'libs', f'python{version}.lib'),
+    os.path.join(base_prefix, 'lib', f'python{version}.lib'),
+    os.path.join(base_prefix, f'python{version}.lib')
+]
+
+for path in possible_paths:
+    if os.path.exists(path):
+        print(path)
+        break
+else:
+    # Fallback: construct standard path
+    print(os.path.join(base_prefix, 'libs', f'python{version}.lib'))
+")
     else
         PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'libpython{sysconfig.get_python_version()}.dylib'))")
     fi
