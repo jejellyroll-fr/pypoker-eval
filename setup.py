@@ -4,9 +4,7 @@ from __future__ import with_statement
 
 import sys
 import os
-from distutils import core
-from distutils.core import Extension
-from distutils.command.build_ext import build_ext
+from setuptools import setup, Extension
 
 
 def read_file(name):
@@ -15,15 +13,22 @@ def read_file(name):
     with open(file_name) as f_obj:
         return f_obj.read()
 
-PYTHON_VERSION = f'{sys.version[0]}_{sys.version[2]}'
-C_NAME = f'_pokereval_{PYTHON_VERSION}'
+# Get full Python version (e.g., "3.11.4")
+PYTHON_VERSION_FULL = f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}'
+PYTHON_VERSION_UNDERSCORE = f'{sys.version_info.major}_{sys.version_info.minor}_{sys.version_info.micro}'
+C_NAME = f'_pokereval_{PYTHON_VERSION_UNDERSCORE}'
+
+# Path to the built static library and includes
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+POKER_EVAL_INCLUDE = os.path.join(BASE_DIR, 'poker-eval', 'include')
+POKER_EVAL_LIB_PATH = os.path.join(BASE_DIR, 'poker-eval', 'build', 'libpoker_lib_static.a')
 
 
-core.setup(
+setup(
     name='pokereval',
     py_modules=['pokereval'],
-    version='3.11',
-    description='',
+    version=PYTHON_VERSION_FULL,
+    description='Python poker hand evaluation library',
     author='',
     author_email='',
     url='',
@@ -35,16 +40,13 @@ core.setup(
             C_NAME,
             ['pypokereval.c'],
             include_dirs=[
+                POKER_EVAL_INCLUDE,
                 'include',
-                '/usr/local/include/poker-eval',
-                '/usr/include/poker-eval',
-                '/usr/local/lib/python3.11/site-packages',
             ],
-            libraries=['poker-eval'],
-            extra_link_args=['-L/usr/lib/x86_64-linux-gnu/'],
+            extra_objects=[POKER_EVAL_LIB_PATH] if os.path.exists(POKER_EVAL_LIB_PATH) else [],
             define_macros=[
-                ('PYTHON_VERSION', f'"{PYTHON_VERSION}"'),
-                ('VERSION_NAME(w)', f'w ## {PYTHON_VERSION}'),
+                ('PYTHON_VERSION', PYTHON_VERSION_UNDERSCORE),
+                ('VERSION_NAME(w)', f'w ## {PYTHON_VERSION_UNDERSCORE}'),
             ],
         )
     ],

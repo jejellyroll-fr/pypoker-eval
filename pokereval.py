@@ -26,8 +26,9 @@
 #
 # 
 import sys
+_pokereval = __import__(f'_pokereval_{sys.version_info.major}_{sys.version_info.minor}_{sys.version_info.micro}')
 #_pokereval = __import__('_pokereval_' + sys.version[0] + '_' + sys.version[2])
-_pokereval = __import__('_pokereval_3_11')
+#_pokereval = __import__('_pokereval_3_11')
 #_pokereval = __import__('pokereval')
 
 

@@ -89,45 +89,53 @@ jobs:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
-          python build_wheel.py
+          if [ "${{ matrix.build-method }}" = "uv" ]; then
+            ./build.sh ${{ matrix.python-version }} --use-venv
+          else
+            ./build.sh ${{ matrix.python-version }}
+          fi
 
       - name: Validate artifacts
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
-          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
-          
+          # New format includes patch version: 3.11.0 -> 3_11_0
+          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
+
           echo "=== Artifact Validation ==="
           echo "Expected Python: ${{ matrix.python-version }}"
           echo "Build method: ${{ matrix.build-method }}"
-          echo "Expected extension: _pokereval_${PYTHON_VER}.so"
-          
-          # Check if extension was built
-          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
-            echo "✅ Extension found: _pokereval_${PYTHON_VER}.so"
-            ls -la _pokereval_${PYTHON_VER}.so
+          echo "Expected extension: _pokereval_${PYTHON_VER_FULL}.so"
+
+          # Check if extension was built (new naming format)
+          if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            echo "✅ Extension found: _pokereval_${PYTHON_VER_FULL}.so"
+            ls -la _pokereval_${PYTHON_VER_FULL}.so
           else
-            echo "❌ Extension missing: _pokereval_${PYTHON_VER}.so"
+            echo "❌ Extension missing: _pokereval_${PYTHON_VER_FULL}.so"
             echo "Available files:"
             ls -la _pokereval_*.so || echo "No .so files found"
+            ls -la *.so || echo "No .so files in root"
             exit 1
           fi
-          
+
           # Check wheel was created
           if [ -f dist/*.whl ]; then
             echo "✅ Wheel created:"
             ls -la dist/*.whl
           else
             echo "❌ Wheel missing"
+            echo "Available files in dist/:"
+            ls -la dist/ || echo "No dist directory"
             exit 1
           fi
-          
-          # Basic import test if possible
+
+          # Basic import test with full version format
           if command -v python${{ matrix.python-version }} >/dev/null 2>&1; then
             echo "=== Testing import with Python ${{ matrix.python-version }} ==="
             python${{ matrix.python-version }} -c "import sys; print(f'Using Python {sys.version}')"
-            python${{ matrix.python-version }} -c "import _pokereval_${PYTHON_VER}; print('✅ Extension imports OK')" || echo "⚠️  Extension import failed"
+            python${{ matrix.python-version }} -c "import _pokereval_${PYTHON_VER_FULL}; print('✅ Extension imports OK')" || echo "⚠️  Extension import failed"
           fi
 
       - name: Upload wheel artifact
@@ -138,14 +146,14 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
           mkdir -p legacy-build/
           cp pokereval.py legacy-build/
           cp test.py legacy-build/
-          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
-            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
           fi
-        
+
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
@@ -233,7 +241,11 @@ jobs:
           $ErrorActionPreference = "Stop"
           $env:PYTHONUTF8 = "1"
           Write-Host "Starting build with Python $env:MATRIX_PYTHON_VERSION and method $env:FORCE_BUILD_METHOD"
-          python build_wheel.py
+          if ($env:FORCE_BUILD_METHOD -eq "uv") {
+            .\build.sh $env:MATRIX_PYTHON_VERSION --use-venv
+          } else {
+            .\build.sh $env:MATRIX_PYTHON_VERSION
+          }
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -244,12 +256,12 @@ jobs:
       - name: Upload binary artifact (legacy)
         shell: pwsh
         run: |
-          $pythonVersionShort = "${{ matrix.python-version }}".Replace('.', '')
+          $pythonVersionFull = "${{ matrix.python-version }}.0".Replace('.', '_')
           New-Item -ItemType Directory -Force -Path "legacy-build"
           Copy-Item pokereval.py legacy-build/
           Copy-Item test.py legacy-build/
-          if (Test-Path "_pokereval_$pythonVersionShort.pyd") {
-            Copy-Item "_pokereval_$pythonVersionShort.pyd" "legacy-build/"
+          if (Test-Path "_pokereval_$pythonVersionFull.pyd") {
+            Copy-Item "_pokereval_$pythonVersionFull.pyd" "legacy-build/"
           }
         
       - name: Upload legacy artifact
@@ -299,7 +311,11 @@ jobs:
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          python build_wheel.py
+          if [ "${{ matrix.build-method }}" = "uv" ]; then
+            ./build.sh ${{ matrix.python-version }} --use-venv
+          else
+            ./build.sh ${{ matrix.python-version }}
+          fi
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -309,12 +325,12 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
           mkdir -p legacy-build/
           cp pokereval.py legacy-build/
           cp test.py legacy-build/
-          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
-            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
           fi
         
       - name: Upload legacy artifact
@@ -364,7 +380,11 @@ jobs:
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          python build_wheel.py
+          if [ "${{ matrix.build-method }}" = "uv" ]; then
+            ./build.sh ${{ matrix.python-version }} --use-venv
+          else
+            ./build.sh ${{ matrix.python-version }}
+          fi
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -374,12 +394,12 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER=$(echo "${{ matrix.python-version }}" | sed 's/\.//')
+          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
           mkdir -p legacy-build/
           cp pokereval.py legacy-build/
           cp test.py legacy-build/
-          if [ -f "_pokereval_${PYTHON_VER}.so" ]; then
-            cp _pokereval_${PYTHON_VER}.so legacy-build/
+          if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
           fi
         
       - name: Upload legacy artifact
