@@ -104,19 +104,26 @@ jobs:
 
           echo "Created symlink: /usr/bin/python${PYTHON_MAJOR_MINOR} -> $(which python)"
 
-          # Use build.sh with --use-venv since we have a virtual environment
-          ./build.sh ${{ matrix.python-version }} --use-venv
+          # Get the actual Python version installed by uv (e.g., 3.9.19)
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          echo "Actual Python version: $ACTUAL_PYTHON_VERSION"
+
+          # Use build.sh with the real version
+          ./build.sh $ACTUAL_PYTHON_VERSION --use-venv
 
       - name: Validate artifacts
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
           set -e
-          # New format includes patch version: 3.11.0 -> 3_11_0
-          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
+          # Activate venv to get the actual Python version
+          source .venv/bin/activate
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          PYTHON_VER_FULL=$(echo "$ACTUAL_PYTHON_VERSION" | sed 's/\./_/g')
 
           echo "=== Artifact Validation ==="
           echo "Expected Python: ${{ matrix.python-version }}"
+          echo "Actual Python: $ACTUAL_PYTHON_VERSION"
           echo "Build method: ${{ matrix.build-method }}"
           echo "Expected extension: _pokereval_${PYTHON_VER_FULL}.so"
 
