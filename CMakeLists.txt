@@ -131,7 +131,7 @@ if(Python3_FOUND)
 
     # Define Python version for the C code
     string(REPLACE "." "_" PYTHON_VERSION_UNDERSCORE ${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR})
-    target_compile_definitions(pypokereval PRIVATE PYTHON_VERSION="${PYTHON_VERSION_UNDERSCORE}")
+    target_compile_definitions(pypokereval PRIVATE PYTHON_VERSION=${PYTHON_VERSION_UNDERSCORE})
 
     # Définir les options de débogage si nécessaire
     if(CMAKE_BUILD_TYPE MATCHES Debug)
