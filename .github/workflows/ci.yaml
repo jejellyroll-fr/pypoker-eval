@@ -165,12 +165,25 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
+          # Get the actual Python version used for build
+          source .venv/bin/activate
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          PYTHON_VER_FULL=$(echo "$ACTUAL_PYTHON_VERSION" | sed 's/\./_/g')
+
+          echo "Creating legacy build with actual version: $ACTUAL_PYTHON_VERSION"
+          echo "Looking for file: _pokereval_${PYTHON_VER_FULL}.so"
+
           mkdir -p legacy-build/
-          cp pokereval.py legacy-build/
-          cp test.py legacy-build/
+          cp pokereval.py legacy-build/ || echo "Warning: pokereval.py not found"
+          cp test.py legacy-build/ || echo "Warning: test.py not found"
+
           if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            echo "✅ Copying _pokereval_${PYTHON_VER_FULL}.so to legacy-build/"
             cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
+          else
+            echo "❌ File _pokereval_${PYTHON_VER_FULL}.so not found"
+            echo "Available .so files:"
+            ls -la _pokereval_*.so || echo "No .so files found"
           fi
 
       - name: Upload legacy artifact
@@ -275,12 +288,24 @@ jobs:
       - name: Upload binary artifact (legacy)
         shell: pwsh
         run: |
-          $pythonVersionFull = "${{ matrix.python-version }}.0".Replace('.', '_')
+          # Get actual Python version instead of hardcoded .0
+          $actualPythonVersion = (python --version).Split(' ')[1]
+          $pythonVersionFull = $actualPythonVersion.Replace('.', '_')
+
+          Write-Host "Creating legacy build with actual version: $actualPythonVersion"
+          Write-Host "Looking for file: _pokereval_$pythonVersionFull.pyd"
+
           New-Item -ItemType Directory -Force -Path "legacy-build"
-          Copy-Item pokereval.py legacy-build/
-          Copy-Item test.py legacy-build/
+          Copy-Item pokereval.py legacy-build/ -ErrorAction SilentlyContinue
+          Copy-Item test.py legacy-build/ -ErrorAction SilentlyContinue
+
           if (Test-Path "_pokereval_$pythonVersionFull.pyd") {
+            Write-Host "✅ Copying _pokereval_$pythonVersionFull.pyd to legacy-build/"
             Copy-Item "_pokereval_$pythonVersionFull.pyd" "legacy-build/"
+          } else {
+            Write-Host "❌ File _pokereval_$pythonVersionFull.pyd not found"
+            Write-Host "Available .pyd files:"
+            Get-ChildItem "_pokereval_*.pyd" -ErrorAction SilentlyContinue
           }
         
       - name: Upload legacy artifact
@@ -297,44 +322,60 @@ jobs:
         python-version: ['3.9', '3.10', '3.11', '3.12']
         build-method: ['uv', 'python']
     name: macOS Intel Python ${{ matrix.python-version }} (${{ matrix.build-method }})
-    
+
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install cmake
+          brew install cmake
 
-      - name: Setup uv
-        if: matrix.build-method == 'uv'
-        uses: astral-sh/setup-uv@v1
-
-      - name: Set build method (uv)
-        if: matrix.build-method == 'uv'
-        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
-
-      - name: Set build method
-        if: matrix.build-method == 'python'
+      - name: Setup Python with uv
         run: |
-          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
+          echo "Installing Python ${{ matrix.python-version }} with uv"
+          uv python install ${{ matrix.python-version }}
+
+          echo "Creating virtual environment with Python ${{ matrix.python-version }}"
+          uv venv --python ${{ matrix.python-version }} .venv
+
+          echo "Virtual environment created"
+          ls -la .venv/bin/python*
+
+          echo "Python version in venv:"
+          .venv/bin/python --version
 
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          if [ "${{ matrix.build-method }}" = "uv" ]; then
-            ./build.sh ${{ matrix.python-version }} --use-venv
-          else
-            ./build.sh ${{ matrix.python-version }}
-          fi
+          set -e
+          echo "Building with build.sh for Python ${{ matrix.python-version }}"
+          echo "Using uv virtual environment"
+
+          # Activate uv virtual environment
+          source .venv/bin/activate
+
+          # Show which Python we're using
+          echo "Active Python: $(which python)"
+          echo "Python version: $(python --version)"
+
+          # Create symlinks for CMakeLists.txt detection
+          PYTHON_MAJOR_MINOR=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
+          sudo ln -sf $(which python) /usr/local/bin/python${PYTHON_MAJOR_MINOR}
+
+          echo "Created symlink: /usr/local/bin/python${PYTHON_MAJOR_MINOR} -> $(which python)"
+
+          # Get the actual Python version installed by uv (e.g., 3.9.19)
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          echo "Actual Python version: $ACTUAL_PYTHON_VERSION"
+
+          # Use build.sh with the real version
+          ./build.sh $ACTUAL_PYTHON_VERSION --use-venv
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -344,14 +385,27 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
+          # Get the actual Python version used for build
+          source .venv/bin/activate
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          PYTHON_VER_FULL=$(echo "$ACTUAL_PYTHON_VERSION" | sed 's/\./_/g')
+
+          echo "Creating legacy build with actual version: $ACTUAL_PYTHON_VERSION"
+          echo "Looking for file: _pokereval_${PYTHON_VER_FULL}.so"
+
           mkdir -p legacy-build/
-          cp pokereval.py legacy-build/
-          cp test.py legacy-build/
+          cp pokereval.py legacy-build/ || echo "Warning: pokereval.py not found"
+          cp test.py legacy-build/ || echo "Warning: test.py not found"
+
           if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            echo "✅ Copying _pokereval_${PYTHON_VER_FULL}.so to legacy-build/"
             cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
+          else
+            echo "❌ File _pokereval_${PYTHON_VER_FULL}.so not found"
+            echo "Available .so files:"
+            ls -la _pokereval_*.so || echo "No .so files found"
           fi
-        
+
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
@@ -366,44 +420,60 @@ jobs:
         python-version: ['3.9', '3.10', '3.11', '3.12']
         build-method: ['uv', 'python']
     name: macOS ARM Python ${{ matrix.python-version }} (${{ matrix.build-method }})
-    
+
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install cmake
+          brew install cmake
 
-      - name: Setup uv
-        if: matrix.build-method == 'uv'
-        uses: astral-sh/setup-uv@v1
-
-      - name: Set build method (uv)
-        if: matrix.build-method == 'uv'
-        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
-
-      - name: Set build method
-        if: matrix.build-method == 'python'
+      - name: Setup Python with uv
         run: |
-          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
+          echo "Installing Python ${{ matrix.python-version }} with uv"
+          uv python install ${{ matrix.python-version }}
+
+          echo "Creating virtual environment with Python ${{ matrix.python-version }}"
+          uv venv --python ${{ matrix.python-version }} .venv
+
+          echo "Virtual environment created"
+          ls -la .venv/bin/python*
+
+          echo "Python version in venv:"
+          .venv/bin/python --version
 
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
         run: |
-          if [ "${{ matrix.build-method }}" = "uv" ]; then
-            ./build.sh ${{ matrix.python-version }} --use-venv
-          else
-            ./build.sh ${{ matrix.python-version }}
-          fi
+          set -e
+          echo "Building with build.sh for Python ${{ matrix.python-version }}"
+          echo "Using uv virtual environment"
+
+          # Activate uv virtual environment
+          source .venv/bin/activate
+
+          # Show which Python we're using
+          echo "Active Python: $(which python)"
+          echo "Python version: $(python --version)"
+
+          # Create symlinks for CMakeLists.txt detection
+          PYTHON_MAJOR_MINOR=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
+          sudo ln -sf $(which python) /usr/local/bin/python${PYTHON_MAJOR_MINOR}
+
+          echo "Created symlink: /usr/local/bin/python${PYTHON_MAJOR_MINOR} -> $(which python)"
+
+          # Get the actual Python version installed by uv (e.g., 3.9.19)
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          echo "Actual Python version: $ACTUAL_PYTHON_VERSION"
+
+          # Use build.sh with the real version
+          ./build.sh $ACTUAL_PYTHON_VERSION --use-venv
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -413,14 +483,27 @@ jobs:
 
       - name: Upload binary artifact (legacy)
         run: |
-          PYTHON_VER_FULL=$(echo "${{ matrix.python-version }}.0" | sed 's/\./_/g')
+          # Get the actual Python version used for build
+          source .venv/bin/activate
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          PYTHON_VER_FULL=$(echo "$ACTUAL_PYTHON_VERSION" | sed 's/\./_/g')
+
+          echo "Creating legacy build with actual version: $ACTUAL_PYTHON_VERSION"
+          echo "Looking for file: _pokereval_${PYTHON_VER_FULL}.so"
+
           mkdir -p legacy-build/
-          cp pokereval.py legacy-build/
-          cp test.py legacy-build/
+          cp pokereval.py legacy-build/ || echo "Warning: pokereval.py not found"
+          cp test.py legacy-build/ || echo "Warning: test.py not found"
+
           if [ -f "_pokereval_${PYTHON_VER_FULL}.so" ]; then
+            echo "✅ Copying _pokereval_${PYTHON_VER_FULL}.so to legacy-build/"
             cp _pokereval_${PYTHON_VER_FULL}.so legacy-build/
+          else
+            echo "❌ File _pokereval_${PYTHON_VER_FULL}.so not found"
+            echo "Available .so files:"
+            ls -la _pokereval_*.so || echo "No .so files found"
           fi
-        
+
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
