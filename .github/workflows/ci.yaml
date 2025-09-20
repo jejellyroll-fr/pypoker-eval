@@ -118,6 +118,14 @@ jobs:
           echo "Checking for built extensions:"
           ls -la _pokereval_*.so _pokereval_*.pyd || echo "No extension files found"
 
+          # Ensure dist directory exists and collect all wheels
+          mkdir -p dist
+          echo "Searching for all .whl files:"
+          find . -name "*.whl" -type f -exec echo "Found: {}" \;
+          find . -name "*.whl" -type f -not -path "./dist/*" -exec cp {} dist/ \; 2>/dev/null || true
+          echo "Final dist directory contents:"
+          ls -la dist/ || echo "Dist directory is empty"
+
       - name: Validate artifacts
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -164,11 +172,25 @@ jobs:
             python${{ matrix.python-version }} -c "import _pokereval_${PYTHON_VER_FULL}; print('✅ Extension imports OK')" || echo "⚠️  Extension import failed"
           fi
 
+      - name: Debug before wheel upload
+        run: |
+          echo "=== Debug before wheel upload ==="
+          echo "Current directory contents:"
+          ls -la
+          echo "Dist directory contents:"
+          ls -la dist/ || echo "No dist directory"
+          echo "All .whl files:"
+          find . -name "*.whl" -type f || echo "No .whl files found"
+          echo "Working directory: $(pwd)"
+
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
         with:
           name: wheel-linux-py${{ matrix.python-version }}-${{ matrix.build-method }}
-          path: dist/*.whl
+          path: |
+            dist/*.whl
+            *.whl
+        if: always()
 
       - name: Upload binary artifact (legacy)
         run: |
