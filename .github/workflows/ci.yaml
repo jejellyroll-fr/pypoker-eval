@@ -111,6 +111,13 @@ jobs:
           # Use build.sh with the real version
           ./build.sh $ACTUAL_PYTHON_VERSION --use-venv
 
+          # Debug wheel creation
+          echo "=== Post-build debug ==="
+          echo "Checking for dist directory and wheel files:"
+          ls -la dist/ || echo "No dist directory found"
+          echo "Checking for built extensions:"
+          ls -la _pokereval_*.so _pokereval_*.pyd || echo "No extension files found"
+
       - name: Validate artifacts
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
@@ -205,10 +212,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
 
       - name: Install system dependencies
         run: |
@@ -219,9 +224,20 @@ jobs:
           git submodule update --init --recursive
           git submodule status
 
-      - name: Setup uv
-        if: matrix.build-method == 'uv'
-        uses: astral-sh/setup-uv@v1
+      - name: Setup Python with uv
+        shell: pwsh
+        run: |
+          Write-Host "Installing Python ${{ matrix.python-version }} with uv"
+          uv python install ${{ matrix.python-version }}
+
+          Write-Host "Creating virtual environment with Python ${{ matrix.python-version }}"
+          uv venv --python ${{ matrix.python-version }} .venv
+
+          Write-Host "Virtual environment created"
+          Get-ChildItem .venv\Scripts\python*
+
+          Write-Host "Python version in venv:"
+          .venv\Scripts\python.exe --version
 
       - name: Set build method (uv)
         if: matrix.build-method == 'uv'
@@ -272,12 +288,30 @@ jobs:
           Set-StrictMode -Version Latest
           $ErrorActionPreference = "Stop"
           $env:PYTHONUTF8 = "1"
-          Write-Host "Starting build with Python $env:MATRIX_PYTHON_VERSION and method $env:FORCE_BUILD_METHOD"
-          if ($env:FORCE_BUILD_METHOD -eq "uv") {
-            .\build.sh $env:MATRIX_PYTHON_VERSION --use-venv
-          } else {
-            .\build.sh $env:MATRIX_PYTHON_VERSION
-          }
+
+          Write-Host "Building with build.sh for Python ${{ matrix.python-version }}"
+          Write-Host "Using uv virtual environment"
+
+          # Activate uv virtual environment
+          .venv\Scripts\Activate.ps1
+
+          # Show which Python we're using
+          Write-Host "Active Python: $(Get-Command python | Select-Object -ExpandProperty Source)"
+          Write-Host "Python version: $(python --version)"
+
+          # Get the actual Python version installed by uv
+          $actualPythonVersion = (python --version).Split(' ')[1]
+          Write-Host "Actual Python version: $actualPythonVersion"
+
+          # Use build.sh with the real version
+          .\build.sh $actualPythonVersion --use-venv
+
+          # Debug wheel creation
+          Write-Host "=== Post-build debug ==="
+          Write-Host "Checking for dist directory and wheel files:"
+          if (Test-Path "dist") { Get-ChildItem dist } else { Write-Host "No dist directory found" }
+          Write-Host "Checking for built extensions:"
+          Get-ChildItem "_pokereval_*.pyd" -ErrorAction SilentlyContinue
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4

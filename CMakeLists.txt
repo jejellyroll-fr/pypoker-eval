@@ -17,19 +17,31 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
         set(Python3_INCLUDE_DIR "C:/hostedtoolcache/windows/Python/3.11.9/x64/include")
     endif()
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    # Check for uv Python first
-    if(EXISTS "$ENV{HOME}/.local/share/uv/python/cpython-3.11.10-macos-x86_64-none/bin/python")
-        set(Python3_EXECUTABLE "$ENV{HOME}/.local/share/uv/python/cpython-3.11.10-macos-x86_64-none/bin/python")
-        set(Python3_LIBRARY "$ENV{HOME}/.local/share/uv/python/cpython-3.11.10-macos-x86_64-none/lib/libpython3.11.dylib")
-        set(Python3_INCLUDE_DIR "$ENV{HOME}/.local/share/uv/python/cpython-3.11.10-macos-x86_64-none/include/python3.11")
-    elseif(EXISTS "/usr/local/opt/python@3.11/libexec/bin/python3")
-        set(Python3_EXECUTABLE "/usr/local/opt/python@3.11/libexec/bin/python3")
-        set(Python3_LIBRARY "/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/libpython3.11.dylib")
-        set(Python3_INCLUDE_DIR "/usr/local/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/include/python3.11")
-    elseif(EXISTS "$ENV{HOME}/anaconda3/bin/python3")
+    # Detect available Python versions dynamically on macOS
+    foreach(PY_VERSION "3.12" "3.11" "3.10" "3.9")
+        # Check system Python first (installed by CI via symlink)
+        if(EXISTS "/usr/local/bin/python${PY_VERSION}")
+            set(Python3_EXECUTABLE "/usr/local/bin/python${PY_VERSION}")
+            # Let CMake auto-detect libraries for system Python
+            break()
+        # Check Homebrew Python
+        elseif(EXISTS "/usr/local/opt/python@${PY_VERSION}/libexec/bin/python3")
+            set(Python3_EXECUTABLE "/usr/local/opt/python@${PY_VERSION}/libexec/bin/python3")
+            set(Python3_LIBRARY "/usr/local/opt/python@${PY_VERSION}/Frameworks/Python.framework/Versions/${PY_VERSION}/lib/libpython${PY_VERSION}.dylib")
+            set(Python3_INCLUDE_DIR "/usr/local/opt/python@${PY_VERSION}/Frameworks/Python.framework/Versions/${PY_VERSION}/include/python${PY_VERSION}")
+            break()
+        endif()
+    endforeach()
+
+    # Fallback to anaconda if system Python not found
+    if(NOT Python3_EXECUTABLE AND EXISTS "$ENV{HOME}/anaconda3/bin/python3")
         set(Python3_EXECUTABLE "$ENV{HOME}/anaconda3/bin/python3")
-        set(Python3_LIBRARY "$ENV{HOME}/anaconda3/lib/libpython3.11.dylib")
-        set(Python3_INCLUDE_DIR "$ENV{HOME}/anaconda3/include/python3.11")
+        # Get version from anaconda python
+        execute_process(COMMAND "$ENV{HOME}/anaconda3/bin/python3" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+                       OUTPUT_VARIABLE ANACONDA_PY_VERSION
+                       OUTPUT_STRIP_TRAILING_WHITESPACE)
+        set(Python3_LIBRARY "$ENV{HOME}/anaconda3/lib/libpython${ANACONDA_PY_VERSION}.dylib")
+        set(Python3_INCLUDE_DIR "$ENV{HOME}/anaconda3/include/python${ANACONDA_PY_VERSION}")
     endif()
 elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # Detect available Python versions dynamically
