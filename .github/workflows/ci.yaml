@@ -313,35 +313,34 @@ jobs:
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
-        shell: pwsh
+        shell: bash
         run: |
-          Set-StrictMode -Version Latest
-          $ErrorActionPreference = "Stop"
-          $env:PYTHONUTF8 = "1"
+          set -e
+          export PYTHONUTF8=1
 
-          Write-Host "Building with build.sh for Python ${{ matrix.python-version }}"
-          Write-Host "Using uv virtual environment"
+          echo "Building with build.sh for Python ${{ matrix.python-version }}"
+          echo "Using uv virtual environment"
 
           # Activate uv virtual environment
-          .venv\Scripts\Activate.ps1
+          source .venv/Scripts/activate
 
           # Show which Python we're using
-          Write-Host "Active Python: $(Get-Command python | Select-Object -ExpandProperty Source)"
-          Write-Host "Python version: $(python --version)"
+          echo "Active Python: $(which python)"
+          echo "Python version: $(python --version)"
 
           # Get the actual Python version installed by uv
-          $actualPythonVersion = (python --version).Split(' ')[1]
-          Write-Host "Actual Python version: $actualPythonVersion"
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          echo "Actual Python version: $ACTUAL_PYTHON_VERSION"
 
           # Use build.sh with the real version
-          .\build.sh $actualPythonVersion --use-venv
+          ./build.sh "$ACTUAL_PYTHON_VERSION" --use-venv
 
           # Debug wheel creation
-          Write-Host "=== Post-build debug ==="
-          Write-Host "Checking for dist directory and wheel files:"
-          if (Test-Path "dist") { Get-ChildItem dist } else { Write-Host "No dist directory found" }
-          Write-Host "Checking for built extensions:"
-          Get-ChildItem "_pokereval_*.pyd" -ErrorAction SilentlyContinue
+          echo "=== Post-build debug ==="
+          echo "Checking for dist directory and wheel files:"
+          if [ -d "dist" ]; then ls -la dist/; else echo "No dist directory found"; fi
+          echo "Checking for built extensions:"
+          ls -la _pokereval_*.pyd 2>/dev/null || echo "No .pyd files found"
 
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v4
@@ -350,35 +349,38 @@ jobs:
           path: dist/*.whl
 
       - name: Upload binary artifact (legacy)
-        shell: pwsh
+        shell: bash
         run: |
+          # Activate uv virtual environment
+          source .venv/Scripts/activate
+
           # Get actual Python version instead of hardcoded .0
-          $actualPythonVersion = (python --version).Split(' ')[1]
-          $pythonVersionFull = $actualPythonVersion.Replace('.', '_')
+          ACTUAL_PYTHON_VERSION=$(python --version | cut -d' ' -f2)
+          PYTHON_VER_FULL=$(echo "$ACTUAL_PYTHON_VERSION" | sed 's/\./_/g')
 
-          Write-Host "Creating legacy build with actual version: $actualPythonVersion"
-          Write-Host "Looking for file: _pokereval_$pythonVersionFull.pyd"
+          echo "Creating legacy build with actual version: $ACTUAL_PYTHON_VERSION"
+          echo "Looking for file: _pokereval_${PYTHON_VER_FULL}.pyd"
 
-          New-Item -ItemType Directory -Force -Path "legacy-build"
-          Copy-Item pokereval.py legacy-build/ -ErrorAction SilentlyContinue
-          Copy-Item test.py legacy-build/ -ErrorAction SilentlyContinue
+          mkdir -p legacy-build/
+          cp pokereval.py legacy-build/ || echo "Warning: pokereval.py not found"
+          cp test.py legacy-build/ || echo "Warning: test.py not found"
 
-          if (Test-Path "_pokereval_$pythonVersionFull.pyd") {
-            Write-Host "✅ Copying _pokereval_$pythonVersionFull.pyd to legacy-build/"
-            Copy-Item "_pokereval_$pythonVersionFull.pyd" "legacy-build/"
-          } else {
-            Write-Host "❌ File _pokereval_$pythonVersionFull.pyd not found"
-            Write-Host "Available .pyd files:"
-            Get-ChildItem "_pokereval_*.pyd" -ErrorAction SilentlyContinue
-          }
+          if [ -f "_pokereval_${PYTHON_VER_FULL}.pyd" ]; then
+            echo "✅ Copying _pokereval_${PYTHON_VER_FULL}.pyd to legacy-build/"
+            cp _pokereval_${PYTHON_VER_FULL}.pyd legacy-build/
+          else
+            echo "❌ File _pokereval_${PYTHON_VER_FULL}.pyd not found"
+            echo "Available .pyd files:"
+            ls -la _pokereval_*.pyd || echo "No .pyd files found"
+          fi
 
           # Also copy wheel files to legacy build
-          if (Test-Path "dist\*.whl") {
-            Write-Host "✅ Copying wheel files to legacy-build/"
-            Copy-Item "dist\*.whl" "legacy-build\" -ErrorAction SilentlyContinue
-          } else {
-            Write-Host "❌ No wheel files found in dist/"
-          }
+          if ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "✅ Copying wheel files to legacy-build/"
+            cp dist/*.whl legacy-build/ || echo "Warning: Failed to copy wheels"
+          else
+            echo "❌ No wheel files found in dist/"
+          fi
         
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
