@@ -94,8 +94,30 @@ jobs:
 
       - name: Configure CMake for multi-version Python
         run: |
-          # Temporarily disable hardcoded Python paths in CMakeLists.txt for Linux
-          sed -i '/elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")/,/^endif()$/c elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")\n    # Let CMake auto-detect Python - CI will provide Python3_EXECUTABLE\n    # Hardcoded paths removed for CI multi-version testing' CMakeLists.txt
+          # Create a backup and modify CMakeLists.txt for multi-version Python support
+          cp CMakeLists.txt CMakeLists.txt.backup
+
+          # Create a simple replacement for the Linux section
+          echo 'elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")' > temp_linux_section.txt
+          echo '    # Let CMake auto-detect Python - CI will provide Python3_EXECUTABLE via environment' >> temp_linux_section.txt
+          echo '    # Hardcoded paths removed for CI multi-version testing' >> temp_linux_section.txt
+          echo 'endif()' >> temp_linux_section.txt
+
+          # Replace the problematic Linux section
+          awk '
+            /elseif\(\$\{CMAKE_SYSTEM_NAME\} MATCHES "Linux"\)/ {
+              while ((getline line < "temp_linux_section.txt") > 0) print line
+              close("temp_linux_section.txt")
+              skip = 1
+              next
+            }
+            /^endif\(\)/ && skip { skip = 0; next }
+            !skip { print }
+          ' CMakeLists.txt > CMakeLists_modified.txt
+
+          mv CMakeLists_modified.txt CMakeLists.txt
+          rm temp_linux_section.txt
+
           echo "Modified CMakeLists.txt Linux section to allow auto-detection"
 
       - name: Setup uv
