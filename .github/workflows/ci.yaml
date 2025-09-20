@@ -94,6 +94,15 @@ jobs:
           set -e
           echo "Building with build.sh for Python ${{ matrix.python-version }}"
 
+          # Override CMakeLists.txt hardcoded paths for Linux by using environment variables
+          export Python3_EXECUTABLE=$(which python${{ matrix.python-version }})
+          export Python3_INCLUDE_DIR=$($Python3_EXECUTABLE -c "from sysconfig import get_paths as gp; print(gp()['include'])")
+          export Python3_LIBRARY="/usr/lib/x86_64-linux-gnu/libpython${{ matrix.python-version }}.so"
+
+          echo "Python executable: $Python3_EXECUTABLE"
+          echo "Python include: $Python3_INCLUDE_DIR"
+          echo "Python library: $Python3_LIBRARY"
+
           if [ "${{ matrix.build-method }}" = "uv" ]; then
             ./build.sh ${{ matrix.python-version }} --use-venv
           else
