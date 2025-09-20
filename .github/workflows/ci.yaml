@@ -74,21 +74,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make python${{ matrix.python-version }}-dev
 
-      - name: Configure Python for CMake
+      - name: Debug Python detection
         run: |
-          PYTHON_EXEC=$(which python${{ matrix.python-version }})
-          PYTHON_MAJOR_MINOR=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
-          PYTHON_INCLUDE=$($PYTHON_EXEC -c "from sysconfig import get_paths as gp; print(gp()['include'])")
-          PYTHON_LIBRARY="/usr/lib/x86_64-linux-gnu/libpython${PYTHON_MAJOR_MINOR}.so"
-
-          echo "Python path: $PYTHON_EXEC"
-          echo "Python version: $($PYTHON_EXEC --version)"
-          echo "Python include: $PYTHON_INCLUDE"
-          echo "Python library: $PYTHON_LIBRARY"
-
-          echo "Python3_EXECUTABLE=$PYTHON_EXEC" >> $GITHUB_ENV
-          echo "Python3_INCLUDE_DIR=$PYTHON_INCLUDE" >> $GITHUB_ENV
-          echo "Python3_LIBRARY=$PYTHON_LIBRARY" >> $GITHUB_ENV
+          echo "=== Python Detection Debug ==="
+          echo "Matrix Python version: ${{ matrix.python-version }}"
+          echo "Available Python executables:"
+          ls -la /usr/bin/python* || true
+          echo ""
+          echo "Python ${{ matrix.python-version }} details:"
+          python${{ matrix.python-version }} --version
+          python${{ matrix.python-version }} -c "import sys; print(f'Executable: {sys.executable}')"
+          python${{ matrix.python-version }} -c "from sysconfig import get_paths as gp; print(f'Include: {gp()[\"include\"]}')"
+          echo ""
+          echo "Available Python libraries:"
+          ls -la /usr/lib/x86_64-linux-gnu/libpython* || true
+          echo ""
+          echo "Python dev packages installed:"
+          dpkg -l | grep python.*-dev || true
 
       - name: Setup uv
         if: matrix.build-method == 'uv'
