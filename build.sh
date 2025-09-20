@@ -93,13 +93,22 @@ setup_uv_environment() {
         exit 1
     }
 
-    # Activate virtual environment
-    source .venv/bin/activate
+    # Activate virtual environment (handle Windows vs Unix paths)
+    if [[ "$OS" == "Windows" ]]; then
+        source .venv/Scripts/activate
+        PYTHON_EXEC="$(pwd)/.venv/Scripts/python.exe"
+    else
+        source .venv/bin/activate
+        PYTHON_EXEC="$(pwd)/.venv/bin/python"
+    fi
 
     # Get Python paths from the virtual environment
-    PYTHON_EXEC="$(pwd)/.venv/bin/python"
     PYTHON_INCLUDE=$($PYTHON_EXEC -c "from sysconfig import get_paths as gp; print(gp()['include'])")
-    PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'libpython{sysconfig.get_python_version()}.dylib'))")
+    if [[ "$OS" == "Windows" ]]; then
+        PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'python{sysconfig.get_python_version().replace(\".\", \"\")}.lib'))")
+    else
+        PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'libpython{sysconfig.get_python_version()}.dylib'))")
+    fi
 
     echo "Virtual environment Python: $PYTHON_EXEC"
     echo "Include directory: $PYTHON_INCLUDE"
