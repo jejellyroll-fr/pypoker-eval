@@ -74,52 +74,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make python${{ matrix.python-version }}-dev
 
-      - name: Debug Python detection
-        run: |
-          echo "=== Python Detection Debug ==="
-          echo "Matrix Python version: ${{ matrix.python-version }}"
-          echo "Available Python executables:"
-          ls -la /usr/bin/python* || true
-          echo ""
-          echo "Python ${{ matrix.python-version }} details:"
-          python${{ matrix.python-version }} --version
-          python${{ matrix.python-version }} -c "import sys; print(f'Executable: {sys.executable}')"
-          python${{ matrix.python-version }} -c "from sysconfig import get_paths as gp; print(f'Include: {gp()[\"include\"]}')"
-          echo ""
-          echo "Available Python libraries:"
-          ls -la /usr/lib/x86_64-linux-gnu/libpython* || true
-          echo ""
-          echo "Python dev packages installed:"
-          dpkg -l | grep python.*-dev || true
-
-      - name: Configure CMake for multi-version Python
-        run: |
-          # Create a backup and modify CMakeLists.txt for multi-version Python support
-          cp CMakeLists.txt CMakeLists.txt.backup
-
-          # Create a simple replacement for the Linux section
-          echo 'elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")' > temp_linux_section.txt
-          echo '    # Let CMake auto-detect Python - CI will provide Python3_EXECUTABLE via environment' >> temp_linux_section.txt
-          echo '    # Hardcoded paths removed for CI multi-version testing' >> temp_linux_section.txt
-          echo 'endif()' >> temp_linux_section.txt
-
-          # Replace the problematic Linux section
-          awk '
-            /elseif\(\$\{CMAKE_SYSTEM_NAME\} MATCHES "Linux"\)/ {
-              while ((getline line < "temp_linux_section.txt") > 0) print line
-              close("temp_linux_section.txt")
-              skip = 1
-              next
-            }
-            /^endif\(\)/ && skip { skip = 0; next }
-            !skip { print }
-          ' CMakeLists.txt > CMakeLists_modified.txt
-
-          mv CMakeLists_modified.txt CMakeLists.txt
-          rm temp_linux_section.txt
-
-          echo "Modified CMakeLists.txt Linux section to allow auto-detection"
-
       - name: Setup uv
         if: matrix.build-method == 'uv'
         uses: astral-sh/setup-uv@v1
@@ -136,11 +90,9 @@ jobs:
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
-          Python3_EXECUTABLE: /usr/bin/python${{ matrix.python-version }}
         run: |
           set -e
-          echo "Using Python3_EXECUTABLE: $Python3_EXECUTABLE"
-          echo "Python version check: $($Python3_EXECUTABLE --version)"
+          echo "Building with build.sh for Python ${{ matrix.python-version }}"
 
           if [ "${{ matrix.build-method }}" = "uv" ]; then
             ./build.sh ${{ matrix.python-version }} --use-venv
