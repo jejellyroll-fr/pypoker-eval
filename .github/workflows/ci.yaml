@@ -215,6 +215,14 @@ jobs:
             ls -la _pokereval_*.so || echo "No .so files found"
           fi
 
+          # Also copy wheel files to legacy build
+          if ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "✅ Copying wheel files to legacy-build/"
+            cp dist/*.whl legacy-build/ || echo "Warning: Failed to copy wheels"
+          else
+            echo "❌ No wheel files found in dist/"
+          fi
+
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
@@ -363,6 +371,14 @@ jobs:
             Write-Host "Available .pyd files:"
             Get-ChildItem "_pokereval_*.pyd" -ErrorAction SilentlyContinue
           }
+
+          # Also copy wheel files to legacy build
+          if (Test-Path "dist\*.whl") {
+            Write-Host "✅ Copying wheel files to legacy-build/"
+            Copy-Item "dist\*.whl" "legacy-build\" -ErrorAction SilentlyContinue
+          } else {
+            Write-Host "❌ No wheel files found in dist/"
+          }
         
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
@@ -462,6 +478,14 @@ jobs:
             ls -la _pokereval_*.so || echo "No .so files found"
           fi
 
+          # Also copy wheel files to legacy build
+          if ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "✅ Copying wheel files to legacy-build/"
+            cp dist/*.whl legacy-build/ || echo "Warning: Failed to copy wheels"
+          else
+            echo "❌ No wheel files found in dist/"
+          fi
+
       - name: Upload legacy artifact
         uses: actions/upload-artifact@v4
         with:
@@ -558,6 +582,14 @@ jobs:
             echo "❌ File _pokereval_${PYTHON_VER_FULL}.so not found"
             echo "Available .so files:"
             ls -la _pokereval_*.so || echo "No .so files found"
+          fi
+
+          # Also copy wheel files to legacy build
+          if ls dist/*.whl 1> /dev/null 2>&1; then
+            echo "✅ Copying wheel files to legacy-build/"
+            cp dist/*.whl legacy-build/ || echo "Warning: Failed to copy wheels"
+          else
+            echo "❌ No wheel files found in dist/"
           fi
 
       - name: Upload legacy artifact
