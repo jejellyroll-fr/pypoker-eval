@@ -60,10 +60,7 @@
 #include "enumerate.h"
 #include "enumdefs.h"
 
-#ifdef WIN32
-#define VERSION_NAME(W) W##3_11
-#define PYTHON_VERSION "3_11"
-#endif /* WIN32 */
+/* PYTHON_VERSION is now defined by CMakeLists.txt based on actual Python version */
 
 /* INNER_LOOP is executed in every iteration of the combinatorial enumerator
    macros DECK_ENUMERATE_n_CARDS_D() and DECK_ENUMERATE_PERMUTATIONS_D.  It
