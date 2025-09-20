@@ -61,31 +61,27 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo add-apt-repository ppa:deadsnakes/ppa -y
-          sudo apt-get update
-          sudo apt-get install -y cmake make python${{ matrix.python-version }}-dev
+          sudo apt-get install -y cmake make
 
-      - name: Setup uv
-        if: matrix.build-method == 'uv'
-        uses: astral-sh/setup-uv@v1
-
-      - name: Set build method (uv)
-        if: matrix.build-method == 'uv'
-        run: echo "FORCE_BUILD_METHOD=uv" >> $GITHUB_ENV
-
-      - name: Set build method
-        if: matrix.build-method == 'python'
+      - name: Setup Python with uv
         run: |
-          echo "FORCE_BUILD_METHOD=python" >> $GITHUB_ENV
+          echo "Installing Python ${{ matrix.python-version }} with uv"
+          uv python install ${{ matrix.python-version }}
+
+          echo "Creating virtual environment with Python ${{ matrix.python-version }}"
+          uv venv --python ${{ matrix.python-version }} .venv
+
+          echo "Virtual environment created"
+          ls -la .venv/bin/python*
+
+          echo "Python version in venv:"
+          .venv/bin/python --version
 
       - name: Build project and create wheel
         env:
@@ -93,21 +89,23 @@ jobs:
         run: |
           set -e
           echo "Building with build.sh for Python ${{ matrix.python-version }}"
+          echo "Using uv virtual environment"
 
-          # Override CMakeLists.txt hardcoded paths for Linux by using environment variables
-          export Python3_EXECUTABLE=$(which python${{ matrix.python-version }})
-          export Python3_INCLUDE_DIR=$($Python3_EXECUTABLE -c "from sysconfig import get_paths as gp; print(gp()['include'])")
-          export Python3_LIBRARY="/usr/lib/x86_64-linux-gnu/libpython${{ matrix.python-version }}.so"
+          # Activate uv virtual environment
+          source .venv/bin/activate
 
-          echo "Python executable: $Python3_EXECUTABLE"
-          echo "Python include: $Python3_INCLUDE_DIR"
-          echo "Python library: $Python3_LIBRARY"
+          # Show which Python we're using
+          echo "Active Python: $(which python)"
+          echo "Python version: $(python --version)"
 
-          if [ "${{ matrix.build-method }}" = "uv" ]; then
-            ./build.sh ${{ matrix.python-version }} --use-venv
-          else
-            ./build.sh ${{ matrix.python-version }}
-          fi
+          # Create symlinks for CMakeLists.txt detection
+          PYTHON_MAJOR_MINOR=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
+          sudo ln -sf $(which python) /usr/bin/python${PYTHON_MAJOR_MINOR}
+
+          echo "Created symlink: /usr/bin/python${PYTHON_MAJOR_MINOR} -> $(which python)"
+
+          # Use build.sh with --use-venv since we have a virtual environment
+          ./build.sh ${{ matrix.python-version }} --use-venv
 
       - name: Validate artifacts
         env:
