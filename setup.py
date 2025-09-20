@@ -21,7 +21,14 @@ C_NAME = f'_pokereval_{PYTHON_VERSION_UNDERSCORE}'
 # Path to the built static library and includes
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POKER_EVAL_INCLUDE = os.path.join(BASE_DIR, 'poker-eval', 'include')
-POKER_EVAL_LIB_PATH = os.path.join(BASE_DIR, 'poker-eval', 'build', 'libpoker_lib_static.a')
+
+# Determine the correct library path based on platform
+if sys.platform.startswith('win'):
+    # Windows: poker_lib_static.lib in Debug folder
+    POKER_EVAL_LIB_PATH = os.path.join(BASE_DIR, 'poker-eval', 'build', 'Debug', 'poker_lib_static.lib')
+else:
+    # Unix: libpoker_lib_static.a
+    POKER_EVAL_LIB_PATH = os.path.join(BASE_DIR, 'poker-eval', 'build', 'libpoker_lib_static.a')
 
 
 setup(
