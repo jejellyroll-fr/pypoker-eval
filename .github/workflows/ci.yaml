@@ -92,6 +92,16 @@ jobs:
           echo "Python dev packages installed:"
           dpkg -l | grep python.*-dev || true
 
+      - name: Configure CMake for multi-version Python
+        run: |
+          # Temporarily disable hardcoded Python paths in CMakeLists.txt for Linux
+          sed -i '/elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")/,/endif()/c\
+          elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")\
+          \    # Let CMake auto-detect Python - CI will provide Python3_EXECUTABLE\
+          endif()' CMakeLists.txt
+
+          echo "Modified CMakeLists.txt Linux section to allow auto-detection"
+
       - name: Setup uv
         if: matrix.build-method == 'uv'
         uses: astral-sh/setup-uv@v1
@@ -108,8 +118,12 @@ jobs:
       - name: Build project and create wheel
         env:
           MATRIX_PYTHON_VERSION: ${{ matrix.python-version }}
+          Python3_EXECUTABLE: /usr/bin/python${{ matrix.python-version }}
         run: |
           set -e
+          echo "Using Python3_EXECUTABLE: $Python3_EXECUTABLE"
+          echo "Python version check: $($Python3_EXECUTABLE --version)"
+
           if [ "${{ matrix.build-method }}" = "uv" ]; then
             ./build.sh ${{ matrix.python-version }} --use-venv
           else
