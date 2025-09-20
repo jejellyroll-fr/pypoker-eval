@@ -74,6 +74,22 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake make python${{ matrix.python-version }}-dev
 
+      - name: Configure Python for CMake
+        run: |
+          PYTHON_EXEC=$(which python${{ matrix.python-version }})
+          PYTHON_MAJOR_MINOR=$(echo "${{ matrix.python-version }}" | cut -d. -f1,2)
+          PYTHON_INCLUDE=$($PYTHON_EXEC -c "from sysconfig import get_paths as gp; print(gp()['include'])")
+          PYTHON_LIBRARY="/usr/lib/x86_64-linux-gnu/libpython${PYTHON_MAJOR_MINOR}.so"
+
+          echo "Python path: $PYTHON_EXEC"
+          echo "Python version: $($PYTHON_EXEC --version)"
+          echo "Python include: $PYTHON_INCLUDE"
+          echo "Python library: $PYTHON_LIBRARY"
+
+          echo "Python3_EXECUTABLE=$PYTHON_EXEC" >> $GITHUB_ENV
+          echo "Python3_INCLUDE_DIR=$PYTHON_INCLUDE" >> $GITHUB_ENV
+          echo "Python3_LIBRARY=$PYTHON_LIBRARY" >> $GITHUB_ENV
+
       - name: Setup uv
         if: matrix.build-method == 'uv'
         uses: astral-sh/setup-uv@v1
