@@ -60,10 +60,7 @@
 #include "enumerate.h"
 #include "enumdefs.h"
 
-#ifdef WIN32
-#define VERSION_NAME(W) W##3_11
-#define PYTHON_VERSION "3_11"
-#endif /* WIN32 */
+/* PYTHON_VERSION is now defined by CMakeLists.txt based on actual Python version */
 
 /* INNER_LOOP is executed in every iteration of the combinatorial enumerator
    macros DECK_ENUMERATE_n_CARDS_D() and DECK_ENUMERATE_PERMUTATIONS_D.  It
@@ -1088,16 +1085,22 @@ static PyMethodDef base_methods[] = {
   {NULL, NULL, 0, NULL}
 };
 
-static struct PyModuleDef pokereval_3_11 =
+#define CONCAT(a, b) a##b
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define MODULE_NAME(version) CONCAT(pokereval_, version)
+#define INIT_FUNC_NAME(version) CONCAT(PyInit__pokereval_, version)
+
+static struct PyModuleDef MODULE_NAME(PYTHON_VERSION) =
 {
     PyModuleDef_HEAD_INIT,
-    "pokereval_3_11", /* name of module */
+    "_pokereval_" TOSTRING(PYTHON_VERSION), /* name of module */
     "",          /* module documentation, may be NULL */
     -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
     base_methods
 };
 
-PyMODINIT_FUNC PyInit__pokereval_3_11(void)
+PyMODINIT_FUNC INIT_FUNC_NAME(PYTHON_VERSION)(void)
 {
-    return PyModule_Create(&pokereval_3_11);
+    return PyModule_Create(&MODULE_NAME(PYTHON_VERSION));
 }
