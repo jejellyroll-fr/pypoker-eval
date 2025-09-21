@@ -131,12 +131,69 @@ else:
     print(os.path.join(base_prefix, 'libs', f'python{version}.lib'))
 ")
     else
-        PYTHON_LIBRARY=$($PYTHON_EXEC -c "import sysconfig; import os; print(os.path.join(sysconfig.get_config_var('LIBDIR'), f'libpython{sysconfig.get_python_version()}.dylib'))")
+        # For macOS/Linux, use a more robust approach to find the library
+        PYTHON_LIBRARY=$($PYTHON_EXEC -c "
+import sys
+import os
+import sysconfig
+
+# Get the base prefix (installation directory)
+base_prefix = sys.base_prefix
+version = sysconfig.get_python_version()
+
+# First try sysconfig approach (works for most standard installations)
+libdir = sysconfig.get_config_var('LIBDIR')
+if libdir and libdir != '/install/lib':  # Skip broken uv path
+    ext = '.dylib' if sys.platform == 'darwin' else '.so'
+    sysconfig_path = os.path.join(libdir, f'libpython{version}{ext}')
+    if os.path.exists(sysconfig_path):
+        print(sysconfig_path)
+        exit()
+
+# If sysconfig failed, try different possible locations
+possible_paths = [
+    os.path.join(base_prefix, 'lib', f'libpython{version}.dylib'),
+    os.path.join(base_prefix, 'lib', f'libpython{version}.so'),
+    os.path.join(base_prefix, 'lib', f'libpython{version}.a'),
+    os.path.join('/usr/lib', f'libpython{version}.dylib'),
+    os.path.join('/usr/lib', f'libpython{version}.so'),
+    os.path.join('/usr/local/lib', f'libpython{version}.dylib'),
+    os.path.join('/usr/local/lib', f'libpython{version}.so')
+]
+
+# Add system-specific paths
+if sys.platform == 'darwin':
+    # macOS: try framework locations
+    possible_paths.extend([
+        f'/usr/local/opt/python@{version}/Frameworks/Python.framework/Versions/{version}/lib/libpython{version}.dylib',
+        f'/System/Library/Frameworks/Python.framework/Versions/{version}/lib/libpython{version}.dylib'
+    ])
+elif sys.platform.startswith('linux'):
+    # Linux: try distribution-specific paths
+    possible_paths.extend([
+        f'/usr/lib/x86_64-linux-gnu/libpython{version}.so',
+        f'/usr/lib/aarch64-linux-gnu/libpython{version}.so'
+    ])
+
+for path in possible_paths:
+    if os.path.exists(path):
+        print(path)
+        break
+else:
+    # Very last resort: construct a reasonable guess
+    ext = '.dylib' if sys.platform == 'darwin' else '.so'
+    print(os.path.join(base_prefix, 'lib', f'libpython{version}{ext}'))
+")
     fi
 
     echo "Virtual environment Python: $PYTHON_EXEC"
     echo "Include directory: $PYTHON_INCLUDE"
     echo "Library path: $PYTHON_LIBRARY"
+
+    # Debug: check if paths exist
+    echo "Debug - Python executable exists: $([ -f "$PYTHON_EXEC" ] && echo 'YES' || echo 'NO')"
+    echo "Debug - Include directory exists: $([ -d "$PYTHON_INCLUDE" ] && echo 'YES' || echo 'NO')"
+    echo "Debug - Library exists: $([ -f "$PYTHON_LIBRARY" ] && echo 'YES' || echo 'NO')"
 }
 
 # Function to find Python executable and paths
@@ -261,9 +318,27 @@ if [[ "$OS" == "Windows" ]]; then
     cmake .. -G "Visual Studio 17 2022"
     cmake --build .
 elif [[ "$OS" == "MacOS" ]]; then
-    cmake -DPython3_EXECUTABLE="$PYTHON_EXEC" \
+    echo "Debug: Configuring CMake with:"
+    echo "  Python3_EXECUTABLE=$PYTHON_EXEC"
+    echo "  Python3_INCLUDE_DIR=$PYTHON_INCLUDE"
+    echo "  Python3_LIBRARY=$PYTHON_LIBRARY"
+
+    # Get the Python installation prefix for CMAKE_PREFIX_PATH
+    PYTHON_PREFIX=$($PYTHON_EXEC -c "import sys; print(sys.prefix)")
+    echo "  Python prefix: $PYTHON_PREFIX"
+
+    # Clear CMake cache to avoid interference
+    rm -f CMakeCache.txt
+
+    echo "Running CMake with verbose output..."
+    cmake --debug-find \
+    -DCMAKE_PREFIX_PATH="$PYTHON_PREFIX" \
+    -DPython3_EXECUTABLE="$PYTHON_EXEC" \
     -DPython3_INCLUDE_DIR="$PYTHON_INCLUDE" \
     -DPython3_LIBRARY="$PYTHON_LIBRARY" \
+    -DPython3_FIND_STRATEGY=LOCATION \
+    -DPython3_FIND_REGISTRY=NEVER \
+    -DPython3_FIND_VIRTUALENV=ONLY \
     ..
     make
 elif [[ "$OS" == "Linux" ]]; then

@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(PyPokerEvalBinding)
 
+# Force CMake to use provided paths instead of automatic searching
+set(Python3_FIND_STRATEGY LOCATION)
+set(Python3_FIND_REGISTRY NEVER)
+
 # Détecter le système d'exploitation et l'architecture
 if(${CMAKE_SYSTEM_NAME} MATCHES "Windows")
     if(EXISTS "$ENV{USERPROFILE}/AppData/Local/Programs/Python/Python311/python.exe")
@@ -75,16 +79,42 @@ elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     endif()
 endif()
 
-# Trouver Python 3.x
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+# Manual Python detection - bypass find_package to force use of our explicit paths
+if(DEFINED Python3_EXECUTABLE AND DEFINED Python3_INCLUDE_DIR AND DEFINED Python3_LIBRARY)
+    # Use explicitly provided Python paths
+    set(Python3_FOUND TRUE)
+    set(Python3_INCLUDE_DIRS ${Python3_INCLUDE_DIR})
+    set(Python3_LIBRARIES ${Python3_LIBRARY})
 
-if(Python3_FOUND)
-    message(STATUS "Python 3.x trouvé : Version ${Python3_VERSION}")
-    message(STATUS "Python Interpreter : ${Python3_EXECUTABLE}")
-    message(STATUS "Python Libraries : ${Python3_LIBRARIES}")
-    message(STATUS "Python Include Dirs : ${Python3_INCLUDE_DIRS}")
+    # Get version from the executable
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"
+        OUTPUT_VARIABLE Python3_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+    message(STATUS "Using explicit Python paths:")
+    message(STATUS "Python 3.x version: ${Python3_VERSION}")
+    message(STATUS "Python Interpreter: ${Python3_EXECUTABLE}")
+    message(STATUS "Python Libraries: ${Python3_LIBRARIES}")
+    message(STATUS "Python Include Dirs: ${Python3_INCLUDE_DIRS}")
 
     include_directories(${Python3_INCLUDE_DIRS})
+else()
+    # Fallback to find_package if no explicit paths provided
+    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
+    if(Python3_FOUND)
+        message(STATUS "Python 3.x trouvé : Version ${Python3_VERSION}")
+        message(STATUS "Python Interpreter : ${Python3_EXECUTABLE}")
+        message(STATUS "Python Libraries : ${Python3_LIBRARIES}")
+        message(STATUS "Python Include Dirs : ${Python3_INCLUDE_DIRS}")
+
+        include_directories(${Python3_INCLUDE_DIRS})
+    endif()
+endif()
+
+if(Python3_FOUND)
     
     # Configurer les chemins pour poker-eval
     set(POKER_EVAL_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/poker-eval/include")
